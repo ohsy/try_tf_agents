@@ -39,9 +39,9 @@ from tf_agents.utils import common
 
 num_iterations = 10000 # 20000 # @param {type:"integer"}
 
-initial_collect_steps = 100  # @param {type:"integer"}
+initial_collect_steps = 2000  # @param {type:"integer"}
 collect_steps_per_iteration =   1# @param {type:"integer"}
-replay_buffer_max_length = 100000  # @param {type:"integer"}
+replay_buffer_max_length = 1000  # @param {type:"integer"}
 
 batch_size = 64  # @param {type:"integer"}
 learning_rate = 1e-3  # @param {type:"number"}
@@ -51,30 +51,11 @@ num_eval_episodes = 10  # @param {type:"integer"}
 eval_interval = 1000  # @param {type:"integer"}
 
 env_name = 'CartPole-v0'
-env = suite_gym.load(env_name)
+# env = suite_gym.load(env_name)
 
 #@test {"skip": true}
-env.reset()
+# env.reset()
 # PIL.Image.fromarray(env.render())
-
-print('Observation Spec:')
-print(env.time_step_spec().observation)
-
-print('Reward Spec:')
-print(env.time_step_spec().reward)
-
-print('Action Spec:')
-print(env.action_spec())
-
-time_step = env.reset()
-print('Time step:')
-print(time_step)
-
-action = np.array(1, dtype=np.int32)
-
-next_time_step = env.step(action)
-print('Next time step:')
-print(next_time_step)
 
 train_py_env = suite_gym.load(env_name)
 eval_py_env = suite_gym.load(env_name)
@@ -82,8 +63,27 @@ eval_py_env = suite_gym.load(env_name)
 train_env = tf_py_environment.TFPyEnvironment(train_py_env)
 eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
+print('Observation Spec:', flush=True)
+print(train_py_env.observation_spec(), flush=True)
+print('Action Spec:', flush=True)
+print(train_py_env.action_spec(), flush=True)
+
+print('Observation Spec:', flush=True)
+print(train_env.observation_spec(), flush=True)
+print('Action Spec:', flush=True)
+print(train_env.action_spec(), flush=True)
+
+# observation_spec, action_spec, time_step_spec = (
+#       spec_utils.get_tensor_specs(train_env))
+
+print('Reward Spec:', flush=True)
+print(train_env.time_step_spec().reward, flush=True)
+
+print('time_step Spec:', flush=True)
+print(train_env.time_step_spec(), flush=True)
+
 fc_layer_params = (100, 50)
-action_tensor_spec = tensor_spec.from_spec(env.action_spec())
+action_tensor_spec = tensor_spec.from_spec(train_py_env.action_spec())
 num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
 
 # Define a helper function to create Dense layers configured with the right
@@ -180,14 +180,15 @@ replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
 rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
   replay_buffer.py_client,
   table_name,
-  sequence_length=2)
+  sequence_length=2,
+  stride_length=1)
 
 agent.collect_data_spec
 agent.collect_data_spec._fields
 
 #@test {"skip": true}
 py_driver.PyDriver(
-    env,
+    train_py_env,
     py_tf_eager_policy.PyTFEagerPolicy(
       random_policy, use_tf_function=True),
     [rb_observer],
@@ -234,7 +235,7 @@ time_step = train_py_env.reset()
 
 # Create a driver to collect experience.
 collect_driver = py_driver.PyDriver(
-    env,
+    train_py_env,
     py_tf_eager_policy.PyTFEagerPolicy(
       agent.collect_policy, use_tf_function=True),
     [rb_observer],

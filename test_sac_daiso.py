@@ -88,7 +88,7 @@ initial_collect_steps = 1000  # @param {type:"integer"}
 collect_steps_per_iteration = 1# @param {type:"integer"}
 replay_buffer_max_length = 5000  # @param {type:"integer"}
 
-batch_size = 8  # @param {type:"integer"}
+batch_size = 256  # @param {type:"integer"}
 critic_learning_rate = 6e-4  # @param {type:"number"}
 actor_learning_rate = 3e-4  # @param {type:"number"}
 alpha_learning_rate = 3e-4  # @param {type:"number"}

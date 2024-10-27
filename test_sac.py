@@ -59,9 +59,9 @@ env_name = "Pendulum-v1" # @param {type:"string"}
 # num_iterations = 100000 # 20000 # @param {type:"integer"}
 num_iterations = 5000 # 20000 # @param {type:"integer"}
 
-initial_collect_steps = 10000  # @param {type:"integer"}
+initial_collect_steps = 1000  # @param {type:"integer"}
 collect_steps_per_iteration = 1# @param {type:"integer"}
-replay_buffer_max_length = 10000  # @param {type:"integer"}
+replay_buffer_max_length = 500  # @param {type:"integer"}
 
 batch_size = 256  # @param {type:"integer"}
 critic_learning_rate = 6e-4  # @param {type:"number"}

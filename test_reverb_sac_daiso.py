@@ -29,7 +29,7 @@ from env_daiso.env_for_tfa import DaisoSokcho
 # from tf_agents.metrics import py_metrics
 from tf_agents.networks import actor_distribution_network
 
-# from tf_agents.drivers import py_driver
+from tf_agents.drivers import py_driver
 from tf_agents.drivers import dynamic_step_driver
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.eval import metric_utils
@@ -128,8 +128,8 @@ print(train_env.action_spec(), flush=True)
 observation_spec, action_spec, time_step_spec = (
       spec_utils.get_tensor_specs(train_env))
 
-print('Reward Spec:', flush=True)
-print(train_env.time_step_spec().reward, flush=True)
+print('time_step Spec:', flush=True)
+print(train_env.time_step_spec(), flush=True)
 
 critic_net = critic_network.CriticNetwork(
       (observation_spec, action_spec),
@@ -219,87 +219,103 @@ print(f"random_return={random_return}", flush=True)
 
 table_name = 'uniform_table'
 
-# replay_buffer_signature = tensor_spec.from_spec(
-#     agent.collect_data_spec)
-# replay_buffer_signature = tensor_spec.add_outer_dim(
-#     replay_buffer_signature)
+# replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+#     data_spec=agent.collect_data_spec,
+#     batch_size=train_env.batch_size,
+#     max_length=replay_buffer_max_length)
 
-# table = reverb.Table(
-#     table_name,
-#     max_size=replay_buffer_max_length,
-#     sampler=reverb.selectors.Uniform(),
-#     remover=reverb.selectors.Fifo(),
-#     rate_limiter=reverb.rate_limiters.MinSize(1),
-#     signature=replay_buffer_signature)
+replay_buffer_signature = tensor_spec.from_spec(
+    agent.collect_data_spec)
+replay_buffer_signature = tensor_spec.add_outer_dim(
+    replay_buffer_signature)
+
+table = reverb.Table(
+    table_name,
+    max_size=replay_buffer_max_length,
+    sampler=reverb.selectors.Uniform(),
+    remover=reverb.selectors.Fifo(),
+    rate_limiter=reverb.rate_limiters.MinSize(1),
+    signature=replay_buffer_signature)
 
 # reverb_server = reverb.Server([table])
+reverb_server = reverb.Server([table], port=8000)
+reverb_client = reverb.Client('localhost:8000')
 
-# replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
-#     agent.collect_data_spec,
-#     table_name=table_name,
-#     sequence_length=2,
-#     local_server=reverb_server)
+replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
+    agent.collect_data_spec,
+    table_name=table_name,
+    sequence_length=2,
+    local_server=reverb_server)
 
-# rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
-#   replay_buffer.py_client,
-#   table_name,
-#   sequence_length=2,
-#   stride_length=1)
-
-replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-    data_spec=agent.collect_data_spec,
-    batch_size=train_env.batch_size,
-    max_length=replay_buffer_max_length)
+rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
+    replay_buffer.py_client,
+    table_name,
+    sequence_length=2,
+    stride_length=1)
 
 dataset = replay_buffer.as_dataset(
     num_parallel_calls=3,
     sample_batch_size=batch_size,
     num_steps=2).prefetch(3)
 iterator = iter(dataset)
-print(f"before checkpoint restore")
-print(f"dataset.cardinality()={dataset.cardinality()}", flush=True)
-print(f"replay_buffer.capacity={replay_buffer.capacity}", flush=True)
-print(f"replay_buffer.num_frames()={replay_buffer.num_frames()}", flush=True)
+
 
 all_before = time.time()
 
-checkpoint_path = os.path.join(
-    os.path.abspath(os.getcwd()),
-    f'result/checkpoint_1026_0833'
-)
-train_checkpointer = common.Checkpointer(
-    ckpt_dir=checkpoint_path,
-    max_to_keep=1,
-    agent=agent,
-    policy=agent.policy,
-    replay_buffer=replay_buffer,
-    global_step=agent.train_step_counter
-)
-
-train_checkpointer.initialize_or_restore()  # not necessary??
-
-print(f"after checkpoint restore")
+print(f"before initial driver run")
 print(f"dataset.cardinality()={dataset.cardinality()}", flush=True)
 print(f"replay_buffer.capacity={replay_buffer.capacity}", flush=True)
 print(f"replay_buffer.num_frames()={replay_buffer.num_frames()}", flush=True)
 
-collect_driver = dynamic_step_driver.DynamicStepDriver(
-    train_env,
-    agent.collect_policy,
-    observers=[replay_buffer.add_batch],
+time_step = train_py_env.reset()
+
+"""
+init_collect_driver = dynamic_step_driver.DynamicStepDriver(
+    train_py_env,
+    random_policy,
+    observers=[rb_observer],
+    # observers=[replay_buffer.add_batch],
     num_steps=collect_steps_per_iteration)
 
+for _ in range(initial_collect_steps):
+    init_collect_driver.run()
 
-# For the curious:
-# Uncomment to see what the dataset iterator is feeding to the agent.
-# Compare this representation of replay data
-# to the collection of
+collect_driver = dynamic_step_driver.DynamicStepDriver(
+    train_py_env,
+    agent.collect_policy,
+    observers=[rb_observer],
+    # observers=[replay_buffer.add_batch],
+    num_steps=collect_steps_per_iteration)
+"""
 
-#@test {"skip": true}
-#try:
-#  %%time
-#except:
-#  pass
+init_collect_driver = py_driver.PyDriver(
+    train_py_env,
+    py_tf_eager_policy.PyTFEagerPolicy(
+        random_policy, use_tf_function=True),
+    [rb_observer],
+    max_steps=initial_collect_steps)
+
+init_collect_driver.run(time_step) 
+
+collect_driver = py_driver.PyDriver(
+    train_py_env,
+    py_tf_eager_policy.PyTFEagerPolicy(
+        agent.collect_policy, use_tf_function=True),
+    [rb_observer],
+    max_steps=collect_steps_per_iteration)
+
+
+# for _ in range(initial_collect_steps // 83):
+#     reset_time_step=train_py_env.reset()
+#     print(f"after env.reset, time_step={reset_time_step}", flush=True)
+#     for _ in range(83):
+#         init_collect_driver.run()
+
+print(f"after initial driver run")
+print(f"dataset.cardinality()={dataset.cardinality()}", flush=True)
+print(f"replay_buffer.capacity={replay_buffer.capacity}", flush=True)
+print(f"replay_buffer.num_frames()={replay_buffer.num_frames()}", flush=True)
+
 
 # (Optional) Optimize by wrapping some of the code in a graph using TF function.
 agent.train = common.function(agent.train)
@@ -319,16 +335,14 @@ summary_path = os.path.join(
 )
 summary_writer = tf.summary.create_file_writer(summary_path)
 
-# Reset the environment.
-# time_step = train_env.reset()
 time_step = train_py_env.reset()
 
 before = time.time()
 for _ in range(num_iterations):
 
     # Collect a few steps and save to the replay buffer.
-    # time_step, _ = collect_driver.run(time_step=time_step)
-    collect_driver.run()
+    # collect_driver.run()
+    time_step, _ = collect_driver.run(time_step)
 
     # Sample a batch of data from the buffer and update the agent's network.
     experience, unused_info = next(iterator)
@@ -368,4 +382,7 @@ train_checkpointer = common.Checkpointer(
     global_step=agent.train_step_counter
 )
 train_checkpointer.save(agent.train_step_counter)
+
+reverb_checkpoint_path = reverb_client.checkpoint()
+print(f"reverb_checkpoint_path={reverb_checkpoint_path}", flush=True)
 
