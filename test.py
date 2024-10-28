@@ -176,7 +176,9 @@ if agent_name in ["dqn", 'cdqn']:
             q_network=q_net,
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             td_errors_loss_fn=common.element_wise_squared_loss,
-            train_step_counter=tf.Variable(0))
+            debug_summaries=True,
+            summarize_grads_and_vars=True,
+            train_step_counter=tf.Variable(0, dtype=tf.int64))
 
     if agent_name in ["cdqn"]:
         categorical_q_net = categorical_q_network.CategoricalQNetwork(
@@ -194,7 +196,9 @@ if agent_name in ["dqn", 'cdqn']:
             n_step_update=n_step_update,
             td_errors_loss_fn=common.element_wise_squared_loss,
             gamma=gamma,
-            train_step_counter=tf.Variable(0))
+            debug_summaries=True,
+            summarize_grads_and_vars=True,
+            train_step_counter=tf.Variable(0, dtype=tf.int64))
 
 elif agent_name in ["ppo"]:
     actor_net = actor_distribution_network.ActorDistributionNetwork(
@@ -218,8 +222,8 @@ elif agent_name in ["ppo"]:
         normalize_rewards=False,
         use_gae=True,
         num_epochs=num_epochs,
-        debug_summaries=debug_summaries,
-        summarize_grads_and_vars=summarize_grads_and_vars,
+        debug_summaries=True,
+        summarize_grads_and_vars=True,
         train_step_counter=train_utils.create_train_step())
 
 elif agent_name in ["sac"]:
@@ -393,7 +397,7 @@ print(f"replay_buffer.num_frames()={replay_buffer.num_frames()}", flush=True)
 agent.train = common.function(agent.train)
 
 # Reset the train step.
-agent.train_step_counter.assign(0)
+agent.train_step_counter.assign(tf.Variable(0, dtype=tf.int64))
 
 # Evaluate the agent's policy once before training.
 avg_return = compute_avg_return(tf_eval_env, agent.policy, num_eval_episodes)
