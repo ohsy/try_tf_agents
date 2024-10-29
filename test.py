@@ -18,10 +18,11 @@ import tensorflow as tf
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.categorical_dqn import categorical_dqn_agent
 from tf_agents.agents.ddpg import critic_network
+from tf_agents.agents.ppo import ppo_clip_agent
 from tf_agents.agents.sac import sac_agent, tanh_normal_projection_network
 from tf_agents.environments import suite_gym, tf_py_environment
 # from tf_agents.environments import suite_pybullet
-from tf_agents.networks import sequential, actor_distribution_network
+from tf_agents.networks import sequential, actor_distribution_network, value_network
 
 from tf_agents.drivers import py_driver, dynamic_step_driver, dynamic_episode_driver
 from tf_agents.eval import metric_utils
@@ -88,15 +89,15 @@ else:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-env_name = "CartPole-v0" # @param {type:"string"}
-# env_name = "Pendulum-v1" # @param {type:"string"}
+# env_name = "CartPole-v0" # @param {type:"string"}
+env_name = "Pendulum-v1" # @param {type:"string"}
 # env_name = "MinitaurBulletEnv-v0" # @param {type:"string"}
 # Use "num_iterations = 1e6" for better results (2 hrs)
 # 1e5 is just so this doesn't take too long (1 hr)
 # env_name = "DaisoSokcho" # @param {type:"string"}
-agent_name = "dqn"
+# agent_name = "dqn"
 # agent_name = "cdqn"
-# agent_name = "ppo"
+agent_name = "ppo"
 # agent_name = "sac"
 # replay_buffer_name = "tf_uniform"
 replay_buffer_name = "reverb"
@@ -106,12 +107,12 @@ driver_name = "py"
 save_or_restore = "save"
 # save_or_restore = "restore"
 
-num_iterations = 5000 # 20000 # @param {type:"integer"}
-initial_collect_steps = 1000  # @param {type:"integer"}
+num_iterations = 500 # 20000 # @param {type:"integer"}
+initial_collect_steps = 100  # @param {type:"integer"}
 collect_steps_per_iteration = 1# @param {type:"integer"}
-replay_buffer_max_length = 5000  # @param {type:"integer"}
+replay_buffer_max_length = 500  # @param {type:"integer"}
 
-batch_size = 256  # @param {type:"integer"}
+batch_size = 8  # @param {type:"integer"}
 learning_rate = 1e-3  # @param {type:"integer"}
 critic_learning_rate = 6e-4  # @param {type:"number"}
 actor_learning_rate = 3e-4  # @param {type:"number"}
@@ -121,12 +122,21 @@ target_update_period = 1 # @param {type:"number"}
 gamma = 0.99 # @param {type:"number"}
 reward_scale_factor = 1.0 # @param {type:"number"}
 
+fc_layer_params = (100, 50)
 actor_fc_layer_params = (256, 256)
 critic_joint_fc_layer_params = (256, 256)
+value_fc_layer_params = (256, 256)
 
-log_interval = 200 # @param {type:"integer"}
+# for PPO
+num_parallel_environments = 30
+num_environment_steps = 25000000
+num_epochs = 25
+collect_episodes_per_iteration = 30
+num_eval_episodes = 30
+
+log_interval = 20 # @param {type:"integer"}
 num_eval_episodes = 10 # @param {type:"integer"}
-eval_interval = 1000 # @param {type:"integer"}
+eval_interval = 100 # @param {type:"integer"}
 # policy_save_interval = 5000 # @param {type:"integer"}
 
 if env_name in ['CartPole-v0', 'Pendulum-v1']:
@@ -157,9 +167,9 @@ print(f"tf time_step Spec: {tf_time_step_spec}", flush=True)
 
 if agent_name in ["dqn", 'cdqn']:
 
-    fc_layer_params = (100, 50)
-    action_tensor_spec = tensor_spec.from_spec(py_train_env.action_spec())
-    num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
+    # action_tensor_spec = tensor_spec.from_spec(py_train_env.action_spec())
+    # num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
+    num_actions = tf_action_spec.maximum - tf_action_spec.minimum + 1
 
     if agent_name in ["dqn"]:
         dense_layers = [dense_layer(num_units) for num_units in fc_layer_params]
@@ -171,8 +181,8 @@ if agent_name in ["dqn", 'cdqn']:
             bias_initializer=tf.keras.initializers.Constant(-0.2))
         q_net = sequential.Sequential(dense_layers + [q_values_layer])
         agent = dqn_agent.DqnAgent(
-            tf_train_env.time_step_spec(),
-            tf_train_env.action_spec(),
+            tf_time_step_spec,
+            tf_action_spec,
             q_network=q_net,
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             td_errors_loss_fn=common.element_wise_squared_loss,
@@ -182,13 +192,13 @@ if agent_name in ["dqn", 'cdqn']:
 
     if agent_name in ["cdqn"]:
         categorical_q_net = categorical_q_network.CategoricalQNetwork(
-            train_env.observation_spec(),
-            train_env.action_spec(),
+            tf_observation_spec,
+            tf_action_spec,
             num_atoms=num_atoms,
             fc_layer_params=fc_layer_params)
         agent = categorical_dqn_agent.CategoricalDqnAgent(
-            train_env.time_step_spec(),
-            train_env.action_spec(),
+            tf_time_step_spec,
+            tf_action_spec,
             categorical_q_network=categorical_q_net,
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             min_q_value=min_q_value,
@@ -202,17 +212,17 @@ if agent_name in ["dqn", 'cdqn']:
 
 elif agent_name in ["ppo"]:
     actor_net = actor_distribution_network.ActorDistributionNetwork(
-        train_env.observation_spec(),
-        train_env.action_spec(),
-        fc_layer_params=actor_fc_layers,
+        tf_observation_spec,
+        tf_action_spec,
+        fc_layer_params=actor_fc_layer_params,
         activation_fn=tf.keras.activations.tanh)
     value_net = value_network.ValueNetwork(
-        train_env.observation_spec(),
-        fc_layer_params=value_fc_layers,
+        tf_observation_spec,
+        fc_layer_params=value_fc_layer_params,
         activation_fn=tf.keras.activations.tanh)
     agent = ppo_clip_agent.PPOClipAgent(
-        train_env.time_step_spec(),
-        train_env.action_spec(),
+        tf_time_step_spec,
+        tf_action_spec,
         optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
         actor_net=actor_net,
         value_net=value_net,
@@ -273,7 +283,9 @@ if replay_buffer_name in ['tf_uniform']:
 elif replay_buffer_name in ['reverb']:
 
     replay_buffer_signature = tensor_spec.from_spec(agent.collect_data_spec)
+    print(f"replay_buffer_signature={replay_buffer_signature}", flush=True)
     replay_buffer_signature = tensor_spec.add_outer_dim(replay_buffer_signature)
+    print(f"replay_buffer_signature={replay_buffer_signature}", flush=True)
 
     table = reverb.Table(
         table_name,
@@ -366,7 +378,7 @@ if driver_name in ['py']:
         max_steps=collect_steps_per_iteration)
 elif driver_name in ['dynamic_step']:
     init_collect_driver = dynamic_step_driver.DynamicStepDriver(
-        py_train_env,
+        tf_train_env,
         tf_random_policy,
         observers=observers,
         num_steps=collect_steps_per_iteration)
@@ -375,7 +387,7 @@ elif driver_name in ['dynamic_step']:
         init_collect_driver.run()
 
     collect_driver = dynamic_step_driver.DynamicStepDriver(
-        py_train_env,
+        tf_train_env,
         agent.collect_policy,
         observers=observers,
         num_steps=collect_steps_per_iteration)
@@ -420,10 +432,10 @@ for _ in range(num_iterations):
         collect_driver.run()
 
     # Sample a batch of data from the buffer and update the agent's network.
-    experience, unused_info = next(iterator)
+    # experience, unused_info = next(iterator)
+    experience, unused_info = iterator.get_next()  # experience as tensor
 
-    # print(f"experience=")
-    # print(f"{experience}", flush=True)
+    # print(f"experience={experience}", flush=True)
 
     with summary_writer.as_default():
         loss_info = agent.train(experience)

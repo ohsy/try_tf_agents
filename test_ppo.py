@@ -169,6 +169,7 @@ def main(_):
 
     agent.initialize()
 
+    print(f"after agent initialize", flush=True)
 
     environment_steps_metric = tf_metrics.EnvironmentSteps()
     step_metrics = [
@@ -203,7 +204,9 @@ def main(_):
     # See also the metrics module for standard implementations of different metrics.
     # https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
 
-    compute_avg_return(eval_env, random_policy, num_eval_episodes)
+    print(f"before getting random policy return", flush=True)
+    random_return = compute_avg_return(eval_env, random_policy, num_eval_episodes)
+    print(f"random policy return = {random_return}", flush=True)
 
     """
     table_name = 'uniform_table'
@@ -267,7 +270,9 @@ def main(_):
     agent.train_step_counter.assign(0)
 
     # Evaluate the agent's policy once before training.
+    print(f"before getting agent policy return", flush=True)
     avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    print(f"agent policy return = {avg_return}", flush=True)
     returns = [avg_return]
 
     # Reset the environment.
@@ -280,6 +285,8 @@ def main(_):
         observers=[replay_buffer.add_batch] + train_metrics,
         num_episodes=collect_episodes_per_iteration,
     )
+
+    print(f"before for-loop", flush=True)
 
     before = time.time()
     for _ in range(num_iterations):
@@ -306,41 +313,6 @@ def main(_):
             avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
             print('step = {0}: Average Return = {1}'.format(step, avg_return))
             returns.append(avg_return)
-
-
-#@test {"skip": true}
-
-# iterations = range(0, num_iterations + 1, eval_interval)
-# plt.plot(iterations, returns)
-# plt.ylabel('Average Return')
-# plt.xlabel('Iterations')
-# plt.ylim(top=250)
-
-
-# def embed_mp4(filename):
-#   """Embeds an mp4 file in the notebook."""
-#   video = open(filename,'rb').read()
-#   b64 = base64.b64encode(video)
-#   tag = '''
-#   '''.format(b64.decode())
-# 
-#   return IPython.display.HTML(tag)
-
-# def create_policy_eval_video(policy, filename, num_episodes=5, fps=30):
-#   filename = filename + ".mp4"
-#   with imageio.get_writer(filename, fps=fps) as video:
-#     for _ in range(num_episodes):
-#       time_step = eval_env.reset()
-#       video.append_data(eval_py_env.render())
-#       while not time_step.is_last():
-#         action_step = policy.action(time_step)
-#         time_step = eval_env.step(action_step.action)
-#         video.append_data(eval_py_env.render())
-#   return embed_mp4(filename)
-
-# create_policy_eval_video(agent.policy, "trained-agent")
-
-# create_policy_eval_video(random_policy, "random-agent")
 
 
 if __name__ == '__main__':
