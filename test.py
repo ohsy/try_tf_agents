@@ -129,10 +129,11 @@ value_fc_layer_params = (256, 256)
 
 # for PPO
 num_parallel_environments = 30
-num_environment_steps = 25000000
+if agent_name in ["ppo"]:
+    batch_size = num_parallel_environments
+num_environment_steps = 20000  # 25000000
 num_epochs = 25
-collect_episodes_per_iteration = 30
-num_eval_episodes = 30
+collect_episodes_per_iteration = num_parallel_environments
 
 log_interval = 20 # @param {type:"integer"}
 num_eval_episodes = 10 # @param {type:"integer"}
@@ -234,7 +235,7 @@ elif agent_name in ["ppo"]:
         num_epochs=num_epochs,
         debug_summaries=True,
         summarize_grads_and_vars=True,
-        train_step_counter=train_utils.create_train_step())
+        train_step_counter=train_utils.create_train_step())  # todo
 
 elif agent_name in ["sac"]:
     critic_net = critic_network.CriticNetwork(
@@ -274,6 +275,14 @@ agent.initialize()
 table_name = 'uniform_table'
 
 if replay_buffer_name in ['tf_uniform']:
+    replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+        agent.collect_data_spec,
+        batch_size=num_parallel_environments,
+        max_length=replay_buffer_capacity,
+    )
+
+
+
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=agent.collect_data_spec,
         batch_size=tf_train_env.batch_size,
@@ -391,6 +400,17 @@ elif driver_name in ['dynamic_step']:
         agent.collect_policy,
         observers=observers,
         num_steps=collect_steps_per_iteration)
+elif driver_name in ['dynamic_episode']:
+    environment_steps_metric = tf_metrics.EnvironmentSteps()
+    step_metrics = [tf_metrics.NumberOfEpisodes(), environment_steps_metric,]
+    train_metrics = step_metrics + [
+        tf_metrics.AverageReturnMetric(batch_size=batch_size),
+        tf_metrics.AverageEpisodeLengthMetric(batch_size=batch_size),]
+    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
+        tf_train_env,
+        agent.collect_policy,
+        observers=[replay_buffer.add_batch] + train_metrics,
+        num_episodes=collect_episodes_per_iteration,)
 
 
 # for _ in range(initial_collect_steps // 83):
@@ -428,18 +448,20 @@ for _ in range(num_iterations):
     # Collect a few steps and save to the replay buffer.
     if driver_name in ['py']:
         time_step, _ = collect_driver.run(time_step)
-    elif driver_name in ['dynamic_step']:
+    elif driver_name in ['dynamic_step','dynamic_episode']:
         collect_driver.run()
 
-    # Sample a batch of data from the buffer and update the agent's network.
-    # experience, unused_info = next(iterator)
-    experience, unused_info = iterator.get_next()  # experience as tensor
-
-    # print(f"experience={experience}", flush=True)
-
-    with summary_writer.as_default():
-        loss_info = agent.train(experience)
-        train_loss = loss_info.loss
+    if agent_name in ['ppo']:
+        trajectories = replay_buffer.gather_all()
+        train_loss = agent.train(experience=trajectories).loss
+        replay_buffer.clear()
+    else:
+        # experience, unused_info = next(iterator)
+        experience, unused_info = iterator.get_next()  # experience as tensor
+        # print(f"experience={experience}", flush=True)
+        with summary_writer.as_default():
+            loss_info = agent.train(experience)
+            train_loss = loss_info.loss
 
     train_step = agent.train_step_counter.numpy()
 
@@ -471,4 +493,5 @@ train_checkpointer.save(agent.train_step_counter)
 if replay_buffer_name in ['reverb']:
     reverb_checkpoint_path = reverb_client.checkpoint()
     print(f"reverb_checkpoint_path={reverb_checkpoint_path}", flush=True)
+
 
