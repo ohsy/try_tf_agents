@@ -276,14 +276,6 @@ table_name = 'uniform_table'
 
 if replay_buffer_name in ['tf_uniform']:
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-        agent.collect_data_spec,
-        batch_size=num_parallel_environments,
-        max_length=replay_buffer_capacity,
-    )
-
-
-
-    replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=agent.collect_data_spec,
         batch_size=tf_train_env.batch_size,
         max_length=replay_buffer_max_length)
