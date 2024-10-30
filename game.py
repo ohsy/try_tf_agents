@@ -97,9 +97,9 @@ def getLogger(filepath="./log.log"):
 
 
 class Game:
-    def __init__(self, config, resultPath):
+    def __init__(self, config, checkpointPath):
         self.config = config
-        self.resultPath = resultPath
+        self.checkpointPath = checkpointPath
         self.num_train_steps_to_save_model = config["num_train_steps_to_save_model"]
 
     def run(self, py_train_env, tf_eval_env, agent, replay_buffer, iterator, init_driver, driver):
@@ -140,19 +140,19 @@ class Game:
 
             if train_step % num_train_steps_to_log == 0:
                 after = time.time()
-                print(f'train_step = {train_step}: loss = {train_loss}, time used = {after - before}', flush=True)
+                print(f'train_step = {train_step}: loss = {train_loss:.3f}, time = {after-before:.3f}', flush=True)
                 before = after
 
             if train_step % num_train_steps_to_eval == 0:
                 avg_return = compute_avg_return(tf_eval_env, agent.policy, num_episodes_to_eval)
-                print(f'train_step = {train_step}: average return = {avg_return}', flush=True)
+                print(f'train_step = {train_step}: average return = {avg_return:.3f}', flush=True)
                 returns.append(avg_return)
 
         after_all = time.time()
-        print(f"total time = {after_all-before_all}")
+        print(f"total time = {after_all-before_all:.3f}")
 
 
-        checkpointPath = os.path.join(os.path.abspath(os.getcwd()), f'{self.resultPath}/model')
+        # checkpointPath = os.path.join(os.path.abspath(os.getcwd()), f'{self.resultPath}/model')
         train_checkpointer = common.Checkpointer(
             ckpt_dir=checkpointPath,
             max_to_keep=2,
@@ -165,7 +165,7 @@ class Game:
         if replay_bufferName in ['reverb']:
             reverb_client = reverb.Client(f"localhost:{config['reverb_port']}")
             reverb_checkpointPath = reverb_client.checkpoint()
-            print(f"reverb_checkpointPath={reverb_checkpointPath}", flush=True)
+            # print(f"reverb_checkpointPath={reverb_checkpointPath}", flush=True)
 
 
 
@@ -191,57 +191,47 @@ if __name__ == "__main__":
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
+    num_train_steps = config['num_train_steps']
+    num_train_steps_to_log = config['num_train_steps_to_log']
+    num_train_steps_to_eval = config['num_train_steps_to_eval']
+    num_train_steps_to_save_model = config['num_train_steps_to_save_model']
+    num_episodes_to_eval = config['num_episodes_to_eval']
 
-    num_train_steps = 500 
-    num_train_steps_to_log = 20
-    num_train_steps_to_eval = 100 
-    num_train_steps_to_save_model = 5000
-    num_episodes_to_eval = 10
+    qnet_fc_layer_params = config['qnet_fc_layer_params']
+    actor_fc_layer_params = config['actor_fc_layer_params']
+    critic_observation_fc_layer_params = config['critic_observation_fc_layer_params']
+    critic_action_fc_layer_params = config['critic_action_fc_layer_params']
+    critic_joint_fc_layer_params = config['critic_joint_fc_layer_params']
+    value_fc_layer_params = config['value_fc_layer_params']
 
-    qnet_fc_layer_params = [128, 64]
-    actor_fc_layer_params = [256, 256]
-    # actor_fc_layer_params = "[32, 32] for Pendulum"
-    critic_observation_fc_layer_params = None
-    # critic_observation_fc_layer_params = [64, 64]
-    # critic_observation_fc_layer_params = "[32, 32] for Pendulum"
-    critic_action_fc_layer_params = None
-    critic_action_fc_layer_params = [64, 64]
-    # critic_action_fc_layer_params = "[32, 32] for Pendulum"
-    critic_joint_fc_layer_params = [256, 256]
-    # critic_joint_fc_layer_params = "[128, 16] for Pendulum"
-    value_fc_layer_params = [256, 256]
+    batch_size = config['batch_size']
+    learning_rate = config['learning_rate']
+    actor_learning_rate = config['actor_learning_rate']
+    critic_learning_rate = config['critic_learning_rate']
+    alpha_learning_rate = config['alpha_learning_rate']
+    target_update_tau = config['target_update_tau']
+    target_update_period = config['target_update_period']
+    gamma = config['gamma']
+    reward_scale_factor = config['reward_scale_factor']
 
-    batch_size = 64 
-    learning_rate = 1e-3
-    actor_learning_rate = 3e-4
-    critic_learning_rate = 6e-4
-    alpha_learning_rate = 3e-4
-    target_update_tau = 0.005
-    target_update_period = 1 
-    gamma = 0.99 
-    reward_scale_factor = 1.0
+    replay_buffer_max_length = config['replay_buffer_max_length']
+    # NOTE: num_frames = capacity = max_length * env.batch_size and default env.batch_size = 1" : None 
+    num_initial_collect_steps = config['num_initial_collect_steps']
+    num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
 
-    replay_buffer_max_length = 500
-    # num_frames = capacity = max_length * env.batch_size and default env.batch_size = 1" : None 
-    num_initial_collect_steps = 100
-    num_collect_steps_per_train_step = 1
+    # for PPO
+    num_parallel_envs = config['num_parallel_envs']
+    num_env_steps = config['num_env_steps']
+    num_epochs = config['num_epochs']
+    num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
 
-    # for PPO" : None
-    num_parallel_envs = 30 
-    num_env_steps = 20000
-    num_epochs = 25
-    num_collect_episodes_per_train_step = 30
-
-
-
-    # 'Pendulum-v1'  # reward in [-16.x, 0]
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, choices=['CartPole-v0','Pendulum-v1','DaisoSokcho'])
     parser.add_argument('-a', '--agent', type=str, choices=['DQN','CDQN','PPOClip','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str)
-    parser.add_argument('-p', '--reverb_checkpoint_path', type=str)
+    parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="parent directory of save path, which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     args = parser.parse_args()
     args = parser.parse_args()
 
@@ -259,6 +249,7 @@ if __name__ == "__main__":
     logger = getLogger(filepath = logPath)
     summaryPath = f"{resultPath}/log/summary"  # directory 
     summaryWriter = tf.summary.create_file_writer(summaryPath)
+    checkpointPath = f'{resultPath}/model'
 
 
     if envName in ['CartPole-v0', 'Pendulum-v1']:
@@ -395,7 +386,7 @@ if __name__ == "__main__":
     if replay_bufferName in ['tf_uniform']:
         replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             data_spec=agent.collect_data_spec,
-            batch_size=tf_train_env.batch_size,
+            batch_size=tf_train_env.batch_size,  # adding batch_size, not sampling
             max_length=replay_buffer_max_length)
         observers=[replay_buffer.add_batch]
 
@@ -415,12 +406,11 @@ if __name__ == "__main__":
             signature=replay_buffer_signature)
 
         if checkpointPath is not None and reverb_checkpointPath is not None:  # restore from checkpoint
-            # reverb_checkpointPath = "/tmp/tmp6j63a_f_"  # parent directory of the returned path of save
-            # like "/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00"
             reverb_checkpointer = reverb.checkpointers.DefaultCheckpointer(path=reverb_checkpointPath)
-            reverb_server = reverb.Server(tables=[table], checkpointer=reverb_checkpointer, port=8000)
+            reverb_server = reverb.Server([table], checkpointer=reverb_checkpointer, port=config['reverb_port'])
         else:
             reverb_server = reverb.Server([table], port=config['reverb_port'])
+        # reverb_client = reverb.Client(f"localhost:{config['reverb_port']}")
 
         replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
             agent.collect_data_spec,
@@ -482,7 +472,7 @@ if __name__ == "__main__":
             py_train_env,
             py_tf_eager_policy.PyTFEagerPolicy(tf_random_policy, use_tf_function=True),
             observers,
-            max_steps=initial_collect_steps)
+            max_steps=num_initial_collect_steps)
 
         init_driver.run(time_step) 
 
@@ -490,7 +480,7 @@ if __name__ == "__main__":
             py_train_env,
             py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
             observers,
-            max_steps=collect_steps_per_train_step)
+            max_steps=num_collect_steps_per_train_step)
     elif driverName in ['dynamic_step']:
         init_driver = dynamic_step_driver.DynamicStepDriver(
             tf_train_env,
@@ -533,7 +523,7 @@ if __name__ == "__main__":
     logger.info(f"config={config}")
 
 
-    game = Game(config, resultPath)
+    game = Game(config, checkpointPath)
     with summaryWriter.as_default():
         if agentName in ["PPOClip"]:
             multiprocessing.handle_main(functools.partial(app.run, game.run))
