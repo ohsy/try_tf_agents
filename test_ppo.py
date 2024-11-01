@@ -73,7 +73,7 @@ def main(_):
     # Use "num_iterations = 1e6" for better results (2 hrs)
     # 1e5 is just so this doesn't take too long (1 hr)
     # num_iterations = 100000 # 20000 # @param {type:"integer"}
-    num_iterations = 200000 # 20000 # @param {type:"integer"}
+    num_iterations = 100000 # 20000 # @param {type:"integer"}
 
     initial_collect_steps = 20000  # @param {type:"integer"}
     collect_steps_per_iteration = 1  # @param {type:"integer"}
@@ -94,7 +94,7 @@ def main(_):
 
     policy_save_interval = 5000 # @param {type:"integer"}
 
-    num_parallel_environments = 30
+    num_parallel_environments = 32
     num_environment_steps = 25000000
     num_epochs = 25
     collect_episodes_per_iteration = num_parallel_environments

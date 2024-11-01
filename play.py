@@ -23,11 +23,10 @@ import tensorflow as tf
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.categorical_dqn import categorical_dqn_agent
 from tf_agents.agents.ddpg import critic_network
-from tf_agents.agents.ppo import ppo_clip_agent
 from tf_agents.agents.sac import sac_agent, tanh_normal_projection_network
-from tf_agents.environments import suite_gym, tf_py_environment
+from tf_agents.environments import suite_gym, tf_py_environment, wrappers
 # from tf_agents.environments import suite_pybullet
-from tf_agents.networks import sequential, actor_distribution_network, value_network
+from tf_agents.networks import sequential, actor_distribution_network, q_network, categorical_q_network
 
 from tf_agents.drivers import py_driver, dynamic_step_driver, dynamic_episode_driver
 from tf_agents.eval import metric_utils
@@ -48,27 +47,6 @@ from game import Game, compute_avg_return
 import warnings
 
 
-# See also the metrics module for standard implementations of different metrics.
-# https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
-"""
-def compute_avg_return(environment, policy, num_episodes=10):
-
-    total_return = 0.0
-    for _ in range(num_episodes):
-
-        time_step = environment.reset()
-        episode_return = 0.0
-
-        while not time_step.is_last():
-            action_step = policy.action(time_step)
-            time_step = environment.step(action_step.action)
-            episode_return += time_step.reward
-        total_return += episode_return
-
-    avg_return = total_return / num_episodes
-    return avg_return.numpy()[0]
-"""
-
 def dense_layer(num_units):
     return tf.keras.layers.Dense(
         num_units,
@@ -85,14 +63,17 @@ class NormalizedActorPolicy(actor_policy.ActorPolicy):
             **kwargs
         )
 
-def getLogger(filepath="./log.log"):
+def getLogger(filepath="./main.log"):
     logger = logging.getLogger("game")
-    logger.setLevel(logging.INFO) #   INFO, DEBUG
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    fileHandler = logging.FileHandler(filename=filepath, mode="w")
-    fileHandler.setLevel(logging.INFO) # INFO, DEBUG
-    fileHandler.setFormatter(formatter)
-    logger.addHandler(fileHandler)
+    logging.basicConfig(
+            level = logging.INFO,  # INFO, DEBUG
+            # format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            format = "%(asctime)s - %(levelname)s - %(message)s",
+            handlers = [ 
+                    logging.FileHandler(filename=filepath, mode="w"),
+                    logging.StreamHandler(sys.stdout)
+            ]
+    )
     return logger
 
 
@@ -123,7 +104,12 @@ if __name__ == "__main__":
     critic_observation_fc_layer_params = config['critic_observation_fc_layer_params']
     critic_action_fc_layer_params = config['critic_action_fc_layer_params']
     critic_joint_fc_layer_params = config['critic_joint_fc_layer_params']
-    value_fc_layer_params = config['value_fc_layer_params']
+
+    # for CDQN
+    num_atoms = config['num_atoms']
+    min_q_value = config['min_q_value']
+    max_q_value = config['max_q_value']
+    n_step_update = config['n_step_update']
 
     batch_size = config['batch_size']
     learning_rate = config['learning_rate']
@@ -136,19 +122,16 @@ if __name__ == "__main__":
     reward_scale_factor = config['reward_scale_factor']
 
     replay_buffer_max_length = config['replay_buffer_max_length']
-    # NOTE: num_frames = capacity = max_length * env.batch_size and default env.batch_size = 1" : None 
+    # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     num_initial_collect_steps = config['num_initial_collect_steps']
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
-
-    # for PPO
-    num_parallel_envs = config['num_parallel_envs']
-    num_env_steps = config['num_env_steps']
-    num_epochs = config['num_epochs']
+    num_initial_collect_episodes = config['num_initial_collect_episodes']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
 
     parser = argparse.ArgumentParser(description="argpars parser used")
-    parser.add_argument('-e', '--environment', type=str, choices=['CartPole-v0','Pendulum-v1','DaisoSokcho'])
-    parser.add_argument('-a', '--agent', type=str, choices=['DQN','CDQN','PPOClip','SAC'])
+    parser.add_argument('-e', '--environment', type=str, 
+            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','DaisoSokcho','DaisoSokcho_discrete'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','CDQN','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -182,34 +165,39 @@ if __name__ == "__main__":
     elif envName in ['DaisoSokcho']:
         py_train_env = DaisoSokcho()
         py_eval_env = DaisoSokcho()
+    elif envName in ['Pendulum-v1_discrete']:
+        eName = envName.split('_discrete')[0]
+        py_train_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=25)
+        py_eval_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=25)
+    elif envName in ['DaisoSokcho_discrete']:
+        py_train_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
+        py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
     else:
         sys.exit(f"environment {envName} is not supported.")
 
-    print(f"observation spec: {py_train_env.observation_spec()}")
-    print(f"action spec: {py_train_env.action_spec()}")
     tf_train_env = tf_py_environment.TFPyEnvironment(py_train_env)
     tf_eval_env = tf_py_environment.TFPyEnvironment(py_eval_env)
     tf_observation_spec = tf_train_env.observation_spec()
     tf_action_spec = tf_train_env.action_spec()
     tf_time_step_spec = tf_train_env.time_step_spec()
-    print(f"tf observation spec: {tf_observation_spec}")
-    print(f"tf action spec: {tf_action_spec}")
-    print(f"tf time_step Spec: {tf_time_step_spec}", flush=True)
-
 
     # action_tensor_spec = tensor_spec.from_spec(py_train_env.action_spec())
     # num_actions = action_tensor_spec.maximum - action_tensor_spec.minimum + 1
 
     if agentName in ["DQN"]:
-        num_actions = tf_action_spec.maximum - tf_action_spec.minimum + 1
-        dense_layers = [dense_layer(num_units) for num_units in qnet_fc_layer_params]
-        q_values_layer = tf.keras.layers.Dense(
-            num_actions,
-            activation=None,
-            kernel_initializer=tf.keras.initializers.RandomUniform(
-                minval=-0.03, maxval=0.03),
-            bias_initializer=tf.keras.initializers.Constant(-0.2))
-        q_net = sequential.Sequential(dense_layers + [q_values_layer])
+        # num_actions = tf_action_spec.maximum - tf_action_spec.minimum + 1
+        # dense_layers = [dense_layer(num_units) for num_units in qnet_fc_layer_params]
+        # q_values_layer = tf.keras.layers.Dense(
+        #     num_actions,
+        #     activation=None,
+        #     kernel_initializer=tf.keras.initializers.RandomUniform(
+        #         minval=-0.03, maxval=0.03),
+        #     bias_initializer=tf.keras.initializers.Constant(-0.2))
+        # q_net = sequential.Sequential(dense_layers + [q_values_layer])
+        q_net = q_network.QNetwork(
+            tf_observation_spec,
+            tf_action_spec,
+            fc_layer_params=qnet_fc_layer_params)
         agent = dqn_agent.DqnAgent(
             tf_time_step_spec,
             tf_action_spec,
@@ -240,32 +228,6 @@ if __name__ == "__main__":
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
-
-    elif agentName in ["PPOClip"]:
-        actor_net = actor_distribution_network.ActorDistributionNetwork(
-            tf_observation_spec,
-            tf_action_spec,
-            fc_layer_params=actor_fc_layer_params,
-            activation_fn=tf.keras.activations.tanh)
-        value_net = value_network.ValueNetwork(
-            tf_observation_spec,
-            fc_layer_params=value_fc_layer_params,
-            activation_fn=tf.keras.activations.tanh)
-        agent = ppo_clip_agent.PPOClipAgent(
-            tf_time_step_spec,
-            tf_action_spec,
-            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-            actor_net=actor_net,
-            value_net=value_net,
-            entropy_regularization=0.0,
-            importance_ratio_clipping=0.2,
-            normalize_observations=False,
-            normalize_rewards=False,
-            use_gae=True,
-            num_epochs=num_epochs,
-            debug_summaries=True,
-            summarize_grads_and_vars=True,
-            train_step_counter=train_utils.create_train_step())  # todo
 
     elif agentName in ["SAC"]:
         critic_net = critic_network.CriticNetwork(
@@ -314,9 +276,9 @@ if __name__ == "__main__":
     elif replay_bufferName in ['reverb']:
 
         replay_buffer_signature = tensor_spec.from_spec(agent.collect_data_spec)
-        print(f"replay_buffer_signature={replay_buffer_signature}", flush=True)
+        logger.info(f"replay_buffer_signature={replay_buffer_signature}")
         replay_buffer_signature = tensor_spec.add_outer_dim(replay_buffer_signature)
-        print(f"after adding outer dim, replay_buffer_signature={replay_buffer_signature}", flush=True)
+        logger.info(f"after adding outer dim, replay_buffer_signature={replay_buffer_signature}")
 
         table = reverb.Table(
             table_name,
@@ -377,75 +339,71 @@ if __name__ == "__main__":
 
     tf_random_policy = random_tf_policy.RandomTFPolicy(tf_time_step_spec, tf_action_spec)
     random_return = compute_avg_return(tf_eval_env, tf_random_policy)
-    print(f"random_return = {random_return}", flush=True)
+    logger.info(f"random_policy return = {random_return}")
 
-    print(f"before initial driver run")
-    print(f"dataset.cardinality()={dataset.cardinality()}", flush=True)
-    print(f"replay_buffer.capacity={replay_buffer.capacity}", flush=True)
-    print(f"replay_buffer.num_frames()={replay_buffer.num_frames()}", flush=True)
-
+    logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
+    logger.info(f"before initial driver run, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     time_step = py_train_env.reset()
+    if checkpointPath is None: 
+        if driverName in ['py']:
+            init_driver = py_driver.PyDriver(
+                py_train_env,
+                py_tf_eager_policy.PyTFEagerPolicy(tf_random_policy, use_tf_function=True),
+                observers,
+                max_steps=num_initial_collect_steps)
+            init_driver.run(time_step) 
+        elif driverName in ['dynamic_step']:
+            init_driver = dynamic_step_driver.DynamicStepDriver(
+                tf_train_env,
+                tf_random_policy,
+                observers=observers,
+                num_steps=num_collect_steps_per_train_step)
+            for _ in range(num_initial_collect_steps):
+                init_driver.run()
+        elif driverName in ['dynamic_episode']:
+            init_driver = dynamic_episode_driver.DynamicEpisodeDriver(
+                tf_train_env,
+                tf_random_policy,
+                observers=observers,
+                num_episodes=num_collect_episodes_per_train_step,)
+            for _ in range(num_initial_collect_episodes):
+                init_driver.run()
+    logger.info(f"after initial driver run, replay_buffer.num_frames()={replay_buffer.num_frames()}")
 
     if driverName in ['py']:
-        init_driver = py_driver.PyDriver(
-            py_train_env,
-            py_tf_eager_policy.PyTFEagerPolicy(tf_random_policy, use_tf_function=True),
-            observers,
-            max_steps=num_initial_collect_steps)
-
-        init_driver.run(time_step) 
-
         driver = py_driver.PyDriver(
             py_train_env,
             py_tf_eager_policy.PyTFEagerPolicy(agent.collect_policy, use_tf_function=True),
             observers,
             max_steps=num_collect_steps_per_train_step)
     elif driverName in ['dynamic_step']:
-        init_driver = dynamic_step_driver.DynamicStepDriver(
-            tf_train_env,
-            tf_random_policy,
-            observers=observers,
-            num_steps=num_collect_steps_per_train_step)
-
-        for _ in range(num_initial_collect_steps):
-            init_driver.run()
-
         driver = dynamic_step_driver.DynamicStepDriver(
             tf_train_env,
             agent.collect_policy,
             observers=observers,
             num_steps=num_collect_steps_per_train_step)
     elif driverName in ['dynamic_episode']:
-        environment_steps_metric = tf_metrics.EnvironmentSteps()
-        step_metrics = [tf_metrics.NumberOfEpisodes(), environment_steps_metric,]
-        train_metrics = step_metrics + [
-            tf_metrics.AverageReturnMetric(batch_size=batch_size),
-            tf_metrics.AverageEpisodeLengthMetric(batch_size=batch_size),]
+        # environment_steps_metric = tf_metrics.EnvironmentSteps()
+        # step_metrics = [tf_metrics.NumberOfEpisodes(), environment_steps_metric,]
+        # train_metrics = step_metrics + [
+        #     tf_metrics.AverageReturnMetric(batch_size=tf_train_env.batch_size),
+        #     tf_metrics.AverageEpisodeLengthMetric(batch_size=tf_train_env.batch_size),]
         driver = dynamic_episode_driver.DynamicEpisodeDriver(
             tf_train_env,
             agent.collect_policy,
-            observers=[replay_buffer.add_batch] + train_metrics,
+            # observers=[replay_buffer.add_batch] + train_metrics,
+            observers=observers,
             num_episodes=num_collect_episodes_per_train_step,)
 
-    print(f"after initial driver run")
-    print(f"dataset.cardinality()={dataset.cardinality()}", flush=True)
-    print(f"replay_buffer.capacity={replay_buffer.capacity}", flush=True)
-    print(f"replay_buffer.num_frames()={replay_buffer.num_frames()}", flush=True)
-
-
     logger.info(f"environment = {envName}")  
-    # logger.info(f"env name: {env.unwrapped.spec.id}")  # like "CartPole-v0"
     logger.info(f"agent = {agentName}")
-    logger.info(f"observation spec: {tf_observation_spec}")
-    logger.info(f"action spec: {tf_action_spec}")
-    logger.info(f"time_step spec: {tf_time_step_spec}")
+    logger.info(f"tf observation spec: {tf_observation_spec}")
+    logger.info(f"tf action spec: {tf_action_spec}")
+    logger.info(f"tf time_step Spec: {tf_time_step_spec}")
     logger.info(f"config={config}")
-
 
     game = Game(config, checkpointPath_toSave)
     with summaryWriter.as_default():
-        if agentName in ["PPOClip"]:
-            multiprocessing.handle_main(functools.partial(app.run, game.run))
-        else:
-            game.run(py_train_env, tf_eval_env, agent, replay_buffer, iterator, init_driver, driver)
+        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver)
 

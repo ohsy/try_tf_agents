@@ -37,7 +37,7 @@ class Game:
         self.num_train_steps_to_save_model = config['num_train_steps_to_save_model']
         self.num_episodes_to_eval = config['num_episodes_to_eval']
 
-    def run(self, py_train_env, tf_eval_env, agent, replay_buffer, iterator, init_driver, driver):
+    def run(self, logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver):
 
         before_all = time.time()
         # (Optional) Optimize by wrapping some of the code in a graph using TF function.
@@ -48,7 +48,7 @@ class Game:
 
         # Evaluate the agent's policy once before training.
         avg_return = compute_avg_return(tf_eval_env, agent.policy, self.num_episodes_to_eval)
-        print(f"before for-loop, avg_return={avg_return}", flush=True)
+        logger.info(f"before training, avg_return={avg_return}")
         returns = [avg_return]
 
         time_step = py_train_env.reset()
@@ -61,35 +61,28 @@ class Game:
             elif driver.__class__.__name__ in ['DynamicStepDriver','DynamicEpisodeDriver']:
                 driver.run()
 
-            if agent.__class__.__name__ in ['PPOClipAgent']:
-                trajectories = replay_buffer.gather_all()
-                train_loss = agent.train(experience=trajectories).loss
-                replay_buffer.clear()
-            else:
-                # experience, unused_info = next(iterator)
-                experience, unused_info = iterator.get_next()  # experience as tensor
-                # print(f"experience={experience}", flush=True)
-                loss_info = agent.train(experience)
-                train_loss = loss_info.loss
+            # experience, unused_info = next(iterator)
+            experience, unused_info = iterator.get_next()  # experience as tensor
+            logger.debug(f"experience={experience}")
+            loss_info = agent.train(experience)
+            train_loss = loss_info.loss
 
             train_step = agent.train_step_counter.numpy()
-
             if train_step % self.num_train_steps_to_log == 0:
                 after = time.time()
-                print(f'train_step = {train_step}: loss = {train_loss:.3f}, time = {after-before:.3f}', flush=True)
+                logger.info(f'train_step={train_step}: loss={train_loss:.3f}, time={after-before:.3f}')
                 before = after
-
             if train_step % self.num_train_steps_to_eval == 0:
                 avg_return = compute_avg_return(tf_eval_env, agent.policy, self.num_episodes_to_eval)
-                print(f'train_step = {train_step}: average return = {avg_return:.3f}', flush=True)
+                logger.info(f'train_step={train_step}: average return={avg_return:.3f}')
                 returns.append(avg_return)
 
         after_all = time.time()
-        print(f"total time = {after_all-before_all:.3f}")
+        logger.info(f"total_time={after_all-before_all:.3f}")
 
 
         # checkpointPath = os.path.join(os.path.abspath(os.getcwd()), f'{self.resultPath}/model')
-        print(f"saving, checkpointPath_toSave={self.checkpointPath_toSave}")
+        logger.info(f"saving, checkpointPath_toSave={self.checkpointPath_toSave}")
         train_checkpointer = common.Checkpointer(
             ckpt_dir=self.checkpointPath_toSave,
             max_to_keep=2,
@@ -102,5 +95,5 @@ class Game:
         if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer']:
             reverb_client = reverb.Client(f"localhost:{self.reverb_port}") 
             reverb_checkpointPath = reverb_client.checkpoint()
-            # print(f"reverb_checkpointPath={reverb_checkpointPath}", flush=True)
+            logger.info(f"reverb_checkpointPath={reverb_checkpointPath}")
 
