@@ -36,12 +36,14 @@ from tf_agents.policies import policy_saver
 from tf_agents.replay_buffers import reverb_replay_buffer, reverb_utils, tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
 from tf_agents.specs import tensor_spec
+from tf_agents.specs.array_spec import BoundedArraySpec
 from tf_agents.utils import common, tensor_normalizer
 from tf_agents.train.utils import spec_utils, train_utils
 from tf_agents.system import system_multiprocessing as multiprocessing
 
 from env_daiso.env_for_tfa import DaisoSokcho
 from game import Game, compute_avg_return
+from multiagent_game import MultiAgentGame, multiagent_compute_avg_return
 
 # to suppress warning of data_manager.py
 import warnings
@@ -66,7 +68,7 @@ class NormalizedActorPolicy(actor_policy.ActorPolicy):
 def getLogger(filepath="./main.log", log_level_name="INFO"):
     logger = logging.getLogger("game")
     logging.basicConfig(
-            level = logging.getLevelName(log_level_name)
+            level = logging.getLevelName(log_level_name),
             # format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             format = "%(asctime)s - %(levelname)s - %(message)s",
             handlers = [ 
@@ -132,7 +134,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--environment', type=str, 
             choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','DaisoSokcho','DaisoSokcho_discrete'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], help="environment wrapper")
-    parser.add_argument('-a', '--agent', type=str, choices=['DQN','CDQN','SAC'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -193,15 +195,6 @@ if __name__ == "__main__":
 
 
     if agentName in ["DQN"]:
-        # num_actions = tf_action_spec.maximum - tf_action_spec.minimum + 1
-        # dense_layers = [dense_layer(num_units) for num_units in qnet_fc_layer_params]
-        # q_values_layer = tf.keras.layers.Dense(
-        #     num_actions,
-        #     activation=None,
-        #     kernel_initializer=tf.keras.initializers.RandomUniform(
-        #         minval=-0.03, maxval=0.03),
-        #     bias_initializer=tf.keras.initializers.Constant(-0.2))
-        # q_net = sequential.Sequential(dense_layers + [q_values_layer])
         q_net = q_network.QNetwork(
             tf_observation_spec,
             tf_action_spec,
@@ -215,6 +208,35 @@ if __name__ == "__main__":
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
+
+    if agentName in ["DQN_multiagent"]:
+        tf_action_specs = []
+        q_nets = []
+        agents = []
+        for ix, mx in enumerate(tf_action_spec.maximum):
+            tf_action_specs.append(
+                tensor_spec.from_spec(
+                    BoundedArraySpec(
+                        shape=(),
+                        dtype=tf.int32, 
+                        name=f'action{ix}', 
+                        minimum=array(0, dtype=int32), 
+                        maximum=array(mx, dtype=int32))))
+            q_nets.append(
+                q_network.QNetwork(
+                    tf_observation_spec,
+                    tf_action_specs[ix],
+                    fc_layer_params=qnet_fc_layer_params))
+            agents.append(
+                dqn_agent.DqnAgent(
+                    tf_time_step_spec,
+                    tf_action_specs[ix],
+                    q_network=q_nets[ix],
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                    td_errors_loss_fn=common.element_wise_squared_loss,
+                    debug_summaries=True,
+                    summarize_grads_and_vars=True,
+                    train_step_counter=tf.Variable(0, dtype=tf.int64)))
 
     if agentName in ["CDQN"]:
         categorical_q_net = categorical_q_network.CategoricalQNetwork(
@@ -406,7 +428,12 @@ if __name__ == "__main__":
     logger.info(f"agent = {agentName}")
     logger.info(f"config={config}")
 
-    game = Game(config, checkpointPath_toSave)
-    with summaryWriter.as_default():
-        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver)
+    if 'multiagent' in envName: 
+        game = MultiAgentGame(config, checkpointPath_toSave)
+        with summaryWriter.as_default():
+            game.run(logger, py_train_env, tf_eval_env, agents, replay_buffer, iterator, driver)
+    else:
+        game = Game(config, checkpointPath_toSave)
+        with summaryWriter.as_default():
+            game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver)
 
