@@ -189,6 +189,9 @@ if __name__ == "__main__":
     tf_action_spec = tf_train_env.action_spec()
     tf_time_step_spec = tf_train_env.time_step_spec()
     logger.info(f"environment = {envName}")  
+    logger.info(f"py observation spec: {py_train_env.observation_spec()}")
+    logger.info(f"py action spec: {py_train_env.action_spec()}")
+    logger.info(f"py time_step Spec: {py_train_env.time_step_spec()}")
     logger.info(f"tf observation spec: {tf_observation_spec}")
     logger.info(f"tf action spec: {tf_action_spec}")
     logger.info(f"tf time_step Spec: {tf_time_step_spec}")
@@ -208,6 +211,8 @@ if __name__ == "__main__":
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
+        agent.initialize()
+        logger.info(f"tf agent collect_data_spec: {agent.collect_data_spec}")
 
     if agentName in ["DQN_multiagent"]:
         tf_action_specs = []
@@ -218,10 +223,10 @@ if __name__ == "__main__":
                 tensor_spec.from_spec(
                     BoundedArraySpec(
                         shape=(),
-                        dtype=tf.int32, 
+                        dtype=np.int64, 
                         name=f'action{ix}', 
-                        minimum=array(0, dtype=int32), 
-                        maximum=array(mx, dtype=int32))))
+                        minimum=0, 
+                        maximum=mx)))
             q_nets.append(
                 q_network.QNetwork(
                     tf_observation_spec,
@@ -237,6 +242,10 @@ if __name__ == "__main__":
                     debug_summaries=True,
                     summarize_grads_and_vars=True,
                     train_step_counter=tf.Variable(0, dtype=tf.int64)))
+            agents[ix].initialize()
+        agent_collect_data_spec = agents[0].collect_data_spec
+        agent_collect_data_spec.action = tf_action_spec  # action spec from tf_env
+        logger.info(f"tf agent collect_data_spec: {agent_collect_data_spec}")
 
     if agentName in ["CDQN"]:
         categorical_q_net = categorical_q_network.CategoricalQNetwork(
@@ -257,6 +266,8 @@ if __name__ == "__main__":
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
+        agent.initialize()
+        logger.info(f"tf agent collect_data_spec: {agent.collect_data_spec}")
 
     elif agentName in ["SAC"]:
         critic_net = critic_network.CriticNetwork(
@@ -289,22 +300,22 @@ if __name__ == "__main__":
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=train_utils.create_train_step())
-
-    agent.initialize()
+        agent.initialize()
+        logger.info(f"tf agent collect_data_spec: {agent.collect_data_spec}")
 
 
     table_name = 'uniform_table'
 
     if replay_bufferName in ['tf_uniform']:
         replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-            data_spec=agent.collect_data_spec,
+            data_spec=agent_collect_data_spec,
             batch_size=tf_train_env.batch_size,  # adding batch_size, not sampling
             max_length=replay_buffer_max_length)
         observers=[replay_buffer.add_batch]
 
     elif replay_bufferName in ['reverb']:
 
-        replay_buffer_signature = tensor_spec.from_spec(agent.collect_data_spec)
+        replay_buffer_signature = tensor_spec.from_spec(agent_collect_data_spec)
         logger.info(f"replay_buffer_signature={replay_buffer_signature}")
         replay_buffer_signature = tensor_spec.add_outer_dim(replay_buffer_signature)
         logger.info(f"after adding outer dim, replay_buffer_signature={replay_buffer_signature}")
@@ -325,7 +336,7 @@ if __name__ == "__main__":
         # reverb_client = reverb.Client(f"localhost:{config['reverb_port']}")
 
         replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
-            agent.collect_data_spec,
+            agent_collect_data_spec,
             table_name=table_name,
             sequence_length=2,
             local_server=reverb_server)

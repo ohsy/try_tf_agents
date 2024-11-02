@@ -66,7 +66,7 @@ class NormalizedActorPolicy(actor_policy.ActorPolicy):
 def getLogger(filepath="./main.log", log_level_name="INFO"):
     logger = logging.getLogger("game")
     logging.basicConfig(
-            level = logging.getLevelName(log_level_name)
+            level = logging.getLevelName(log_level_name),
             # format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             format = "%(asctime)s - %(levelname)s - %(message)s",
             handlers = [ 
@@ -187,6 +187,9 @@ if __name__ == "__main__":
     tf_action_spec = tf_train_env.action_spec()
     tf_time_step_spec = tf_train_env.time_step_spec()
     logger.info(f"environment = {envName}")  
+    logger.info(f"py observation spec: {py_train_env.observation_spec()}")
+    logger.info(f"py action spec: {py_train_env.action_spec()}")
+    logger.info(f"py time_step Spec: {py_train_env.time_step_spec()}")
     logger.info(f"tf observation spec: {tf_observation_spec}")
     logger.info(f"tf action spec: {tf_action_spec}")
     logger.info(f"tf time_step Spec: {tf_time_step_spec}")
@@ -269,6 +272,7 @@ if __name__ == "__main__":
             train_step_counter=train_utils.create_train_step())
 
     agent.initialize()
+    logger.info(f"tf agent collect_data_spec: {agent.collect_data_spec}")
 
 
     table_name = 'uniform_table'
