@@ -34,7 +34,7 @@ from tf_agents.metrics import tf_metrics, py_metrics
 from tf_agents.policies import actor_policy, greedy_policy, py_tf_eager_policy, random_tf_policy
 from tf_agents.policies import policy_saver
 from tf_agents.replay_buffers import reverb_replay_buffer, reverb_utils, tf_uniform_replay_buffer
-from tf_agents.trajectories import trajectory
+from tf_agents.trajectories import Trajectory
 from tf_agents.specs import tensor_spec
 from tf_agents.specs.array_spec import BoundedArraySpec
 from tf_agents.utils import common, tensor_normalizer
@@ -243,8 +243,14 @@ if __name__ == "__main__":
                     summarize_grads_and_vars=True,
                     train_step_counter=tf.Variable(0, dtype=tf.int64)))
             agents[ix].initialize()
-        agent_collect_data_spec = agents[0].collect_data_spec
-        agent_collect_data_spec.action = tf_action_spec  # action spec from tf_env
+        agent_collect_data_spec = Trajectory(
+                agents[0].collect_data_spec.step_type,
+                agents[0].collect_data_spec.observation,
+                tf_action_spec,
+                agents[0].collect_data_spec.policy_info,
+                agents[0].collect_data_spec.next_step_type,
+                agents[0].collect_data_spec.reward,
+                agents[0].collect_data_spec.discount)
         logger.info(f"tf agent collect_data_spec: {agent_collect_data_spec}")
 
     if agentName in ["CDQN"]:
@@ -377,8 +383,14 @@ if __name__ == "__main__":
         train_checkpointer.initialize_or_restore()
 
 
-    tf_random_policy = random_tf_policy.RandomTFPolicy(tf_time_step_spec, tf_action_spec)
-    random_return = compute_avg_return(tf_eval_env, tf_random_policy)
+    if 'multiagent' in agentName:
+        tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_time_step_spec, agent.action_spec) for agent in agents]
+        random_return = multiagent_compute_avg_return(tf_eval_env, policies=tf_random_policies)
+    else: 
+        tf_random_policy = random_tf_policy.RandomTFPolicy(tf_time_step_spec, tf_action_spec)
+        random_return = compute_avg_return(tf_eval_env, tf_random_policy)
+    tf_random_policy = random_tf_policy.RandomTFPolicy(tf_time_step_spec, tf_action_spec)  # TEMP
+
     logger.info(f"random_policy return = {random_return}")
 
     logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")

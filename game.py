@@ -19,6 +19,8 @@ def compute_avg_return(environment, policy, num_episodes=10):
 
         while not time_step.is_last():
             action_step = policy.action(time_step)
+            # print(f"in compute_avg_return, action_step={action_step}", flush=True)
+            # print(f"in compute_avg_return, action={action_step.action}", flush=True)
             time_step = environment.step(action_step.action)
             episode_return += time_step.reward
         total_return += episode_return

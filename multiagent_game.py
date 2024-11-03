@@ -3,6 +3,7 @@ game with tf-agents
 """
 
 import time
+import numpy as np
 import reverb
 import tensorflow as tf
 from tf_agents.utils import common
@@ -23,12 +24,22 @@ def merge_action(actions):
     """
     actions: list of actions
     """
-    return actions
+    # print(f"in merge_action, actions={actions}",flush=True)
+    merged = tf.reshape(actions, [1,len(actions)])
+    # print(f"in merge_action, merged={merged}",flush=True)
+    return merged
+    # return np.array([actions], dtype=np.int32)
+    # return [actions]
 
 
 # See also the metrics module for standard implementations of different metrics.
 # https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
-def multiagent_compute_avg_return(environment, agents, num_episodes=10):
+def multiagent_compute_avg_return(environment, policies=None, agents=None, num_episodes=10):
+    assert not(policies is None and agents is None), f"either policies or agents must not be None"
+    if policies is None:
+        policies = []
+        for agent in agents:
+            policies.append(agent.policy)
 
     total_return = 0.0
     for _ in range(num_episodes):
@@ -38,9 +49,9 @@ def multiagent_compute_avg_return(environment, agents, num_episodes=10):
 
         while not time_step.is_last():
             actions = []
-            for agent in agents:
+            for policy in policies:
                 action_step = policy.action(time_step)
-                actions.append(action_step.action)
+                actions.append(action_step.action) 
             merged_action = merge_action(actions)
             time_step = environment.step(merged_action)
             episode_return += time_step.reward
@@ -69,7 +80,7 @@ class MultiAgentGame:
             agent.train_step_counter.assign(tf.Variable(0, dtype=tf.int64))
 
         # Evaluate the agent's policy once before training.
-        avg_return = multiagent_compute_avg_return(tf_eval_env, agents, self.num_episodes_to_eval)
+        avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
         logger.info(f"before training, avg_return={avg_return}")
         returns = [avg_return]
 
@@ -107,6 +118,7 @@ class MultiAgentGame:
                         experience.action[:, :, ix],
                         experience.policy_info,
                         experience.next_step_type,
+                        experience.reward,
                         experience.discount))
                 loss_info = agent.train(trajectories[ix])
                 train_loss += loss_info.loss
@@ -118,7 +130,7 @@ class MultiAgentGame:
                 logger.info(f'train_step={train_step}: loss={train_loss:.3f}, time={after-before:.3f}')
                 before = after
             if train_step % self.num_train_steps_to_eval == 0:
-                avg_return = multiagent_compute_avg_return(tf_eval_env, agents, self.num_episodes_to_eval)
+                avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
                 logger.info(f'train_step={train_step}: average return={avg_return:.3f}')
                 returns.append(avg_return)
 
