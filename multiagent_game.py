@@ -2,19 +2,20 @@
 game with tf-agents
 """
 
+import os
 import time
 import numpy as np
 import reverb
 import tensorflow as tf
 from tf_agents.utils import common
-from tf_agents.trajectories import Trajectory
+from tf_agents.trajectories import Trajectory, from_transition
 
 
 def collect_step(environment, policy):
   time_step = environment.current_time_step()
   action_step = policy.action(time_step)
   next_time_step = environment.step(action_step.action)
-  traj = trajectory.from_transition(time_step, action_step, next_time_step)
+  traj = from_transition(time_step, action_step, next_time_step)
 
   # Add trajectory to the replay buffer
   replay_buffer.add_batch(traj)
@@ -70,8 +71,9 @@ class MultiAgentGame:
         self.num_train_steps_to_eval = config['num_train_steps_to_eval']
         self.num_train_steps_to_save_model = config['num_train_steps_to_save_model']
         self.num_episodes_to_eval = config['num_episodes_to_eval']
+        self.num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
 
-    def run(self, logger, py_train_env, tf_eval_env, agents, replay_buffer, iterator, driver):
+    def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator):
 
         before_all = time.time()
         # (Optional) Optimize by wrapping some of the code in a graph using TF function.
@@ -84,12 +86,13 @@ class MultiAgentGame:
         logger.info(f"before training, avg_return={avg_return}")
         returns = [avg_return]
 
-        time_step = py_train_env.reset()
+        # time_step = py_train_env.reset()
+        time_step = tf_train_env.reset()
         before = time.time()
         for _ in range(self.num_train_steps):
 
             # Collect a few steps and save to the replay buffer.
-            for _ in range(num_collect_steps_per_train_step):
+            for _ in range(self.num_collect_steps_per_train_step):
                 # collect_step(tf_train_env, agent.collect_policy)
                 time_step = tf_train_env.current_time_step()
                 # action_step = policy.action(time_step)
@@ -99,8 +102,8 @@ class MultiAgentGame:
                     actions.append(action_step.action)
                 merged_action = merge_action(actions)
                 # next_time_step = environment.step(action_step.action)
-                next_time_step = environment.step(merged_action)
-                traj = trajectory.from_transition(time_step, action_step, next_time_step)
+                next_time_step = tf_train_env.step(merged_action)
+                traj = from_transition(time_step, action_step, next_time_step)
 
                 # Add trajectory to the replay buffer
                 replay_buffer.add_batch(traj)
@@ -140,14 +143,24 @@ class MultiAgentGame:
 
         # checkpointPath = os.path.join(os.path.abspath(os.getcwd()), f'{self.resultPath}/model')
         logger.info(f"saving, checkpointPath_toSave={self.checkpointPath_toSave}")
-        train_checkpointer = common.Checkpointer(
-            ckpt_dir=self.checkpointPath_toSave,
-            max_to_keep=2,
-            agent=agent,
-            policy=agent.policy,
-            replay_buffer=replay_buffer,
-            global_step=agent.train_step_counter)
-        train_checkpointer.save(agent.train_step_counter)
+        for ix, agent in enumerate(agents):
+            checkpointPath = os.path.join(self.checkpointPath_toSave, f'{ix}')
+            if ix == 0:
+                train_checkpointer = common.Checkpointer(
+                    ckpt_dir=checkpointPath,
+                    max_to_keep=2,
+                    agent=agent,
+                    policy=agent.policy,
+                    replay_buffer=replay_buffer,
+                    global_step=agent.train_step_counter)
+            else:
+                train_checkpointer = common.Checkpointer(
+                    ckpt_dir=checkpointPath,
+                    max_to_keep=2,
+                    agent=agent,
+                    policy=agent.policy,
+                    global_step=agent.train_step_counter)
+            train_checkpointer.save(agent.train_step_counter)
 
         if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer']:
             reverb_client = reverb.Client(f"localhost:{self.reverb_port}") 
