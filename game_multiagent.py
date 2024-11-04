@@ -8,17 +8,38 @@ import numpy as np
 import reverb
 import tensorflow as tf
 from tf_agents.utils import common
-from tf_agents.trajectories import Trajectory, from_transition
+from tf_agents.trajectories import Trajectory, from_transition, PolicyStep
+from tf_agents.policies import random_tf_policy
 
 
-def collect_step(environment, policy):
-  time_step = environment.current_time_step()
-  action_step = policy.action(time_step)
-  next_time_step = environment.step(action_step.action)
-  traj = from_transition(time_step, action_step, next_time_step)
+def collect_trajectory(logger, environment, replay_buffer, policies=None, agents=None):
+    """
+    based on the following code for one agent:
+    time_step = environment.current_time_step()
+    action_step = policy.action(time_step)
+    next_time_step = environment.step(action_step.action)
+    traj = from_transition(time_step, action_step, next_time_step)
+    replay_buffer.add_batch(traj)
+    """
+    assert not(policies is None and agents is None), f"either policies or agents must not be None"
+    if policies is None:
+        policies = []
+        for agent in agents:
+            policies.append(agent.collect_policy)
 
-  # Add trajectory to the replay buffer
-  replay_buffer.add_batch(traj)
+    time_step = environment.current_time_step()
+    # action_step = policy.action(time_step)
+    actions = []
+    for policy in policies:
+        action_step = policy.action(time_step)
+        actions.append(action_step.action)
+    merged_action = merge_action(actions)
+    # logger.debug(f"action_step={action_step}")
+    action_step = PolicyStep(action=merged_action)
+    next_time_step = environment.step(merged_action)
+    # logger.debug(f"action_step={action_step}")
+    traj = from_transition(time_step, action_step, next_time_step)
+    replay_buffer.add_batch(traj)
 
 
 def merge_action(actions):
@@ -27,10 +48,26 @@ def merge_action(actions):
     """
     # print(f"in merge_action, actions={actions}",flush=True)
     merged = tf.reshape(actions, [1,len(actions)])
+    # merged = tf.cast(merged, dtype=tf.int32)
     # print(f"in merge_action, merged={merged}",flush=True)
     return merged
     # return np.array([actions], dtype=np.int32)
     # return [actions]
+
+
+def trajectories_from_merged_trajectory(merged, num_trajectories):
+    trajectories = []
+    for ix in range(num_trajectories):
+        trajectories.append(
+            Trajectory(
+                merged.step_type,
+                merged.observation,
+                merged.action[:, :, ix],
+                merged.policy_info,
+                merged.next_step_type,
+                merged.reward,
+                merged.discount))
+    return trajectories
 
 
 # See also the metrics module for standard implementations of different metrics.
@@ -66,6 +103,7 @@ class MultiAgentGame:
     def __init__(self, config, checkpointPath_toSave):
         self.checkpointPath_toSave = checkpointPath_toSave
         self.reverb_port = config['reverb_port']
+        self.num_init_collect_steps = config['num_init_collect_steps']
         self.num_train_steps = config['num_train_steps']
         self.num_train_steps_to_log = config['num_train_steps_to_log']
         self.num_train_steps_to_eval = config['num_train_steps_to_eval']
@@ -76,6 +114,11 @@ class MultiAgentGame:
     def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator):
 
         before_all = time.time()
+        # Collect random policy steps and save to the replay buffer.
+        tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_train_env.time_step_spec(), ag.action_spec) for ag in agents]
+        for _ in range(self.num_init_collect_steps):
+            collect_trajectory(logger, tf_train_env, replay_buffer, policies=tf_random_policies)
+
         # (Optional) Optimize by wrapping some of the code in a graph using TF function.
         for agent in agents: 
             agent.train = common.function(agent.train)
@@ -93,39 +136,19 @@ class MultiAgentGame:
 
             # Collect a few steps and save to the replay buffer.
             for _ in range(self.num_collect_steps_per_train_step):
-                # collect_step(tf_train_env, agent.collect_policy)
-                time_step = tf_train_env.current_time_step()
-                # action_step = policy.action(time_step)
-                actions = []
-                for agent in agents:
-                    action_step = agent.collect_policy.action(time_step)
-                    actions.append(action_step.action)
-                merged_action = merge_action(actions)
-                # next_time_step = environment.step(action_step.action)
-                next_time_step = tf_train_env.step(merged_action)
-                traj = from_transition(time_step, action_step, next_time_step)
-
-                # Add trajectory to the replay buffer
-                replay_buffer.add_batch(traj)
+                collect_trajectory(logger, tf_train_env, replay_buffer, agents=agents)
 
             # experience, unused_info = next(iterator)
-            experience, unused_info = iterator.get_next()  # experience as tensor
-            logger.debug(f"experience={experience}")
-            trajectories = []
+            trajectory, unused_info = iterator.get_next()  # trajectory as tensor
+            # logger.debug(f"trajectory={trajectory}")
+
+            trajectories = trajectories_from_merged_trajectory(trajectory, len(agents))
+            # logger.debug(f"trajectories={trajectories}")
+
             train_loss = 0
             for ix, agent in enumerate(agents):
-                trajectories.append(
-                    Trajectory(
-                        experience.step_type,
-                        experience.observation,
-                        experience.action[:, :, ix],
-                        experience.policy_info,
-                        experience.next_step_type,
-                        experience.reward,
-                        experience.discount))
                 loss_info = agent.train(trajectories[ix])
                 train_loss += loss_info.loss
-            logger.debug(f"trajectories={trajectories}")
 
             train_step = agent.train_step_counter.numpy()
             if train_step % self.num_train_steps_to_log == 0:

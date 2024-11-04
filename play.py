@@ -43,7 +43,7 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 
 from env_daiso.env_for_tfa import DaisoSokcho
 from game import Game, compute_avg_return
-from multiagent_game import MultiAgentGame, multiagent_compute_avg_return
+from game_multiagent import MultiAgentGame, multiagent_compute_avg_return
 
 # to suppress warning of data_manager.py
 import warnings
@@ -83,12 +83,12 @@ def get_tf_env_specs(logger, tf_env, py_env):
     tf_observation_spec = tf_train_env.observation_spec()
     tf_action_spec = tf_train_env.action_spec()
     tf_time_step_spec = tf_train_env.time_step_spec()
-    logger.debug(f"py observation spec: {py_env.observation_spec()}")
-    logger.debug(f"py action spec: {py_env.action_spec()}")
-    logger.debug(f"py time_step Spec: {py_env.time_step_spec()}")
-    logger.info(f"tf observation spec: {tf_observation_spec}")
-    logger.info(f"tf action spec: {tf_action_spec}")
-    logger.info(f"tf time_step Spec: {tf_time_step_spec}")
+    logger.debug(f"py_observation_spec: {py_env.observation_spec()}")
+    logger.debug(f"py_action_spec: {py_env.action_spec()}")
+    logger.debug(f"py_time_step_spec: {py_env.time_step_spec()}")
+    logger.info(f"tf_observation_spec: {tf_observation_spec}")
+    logger.info(f"tf_action_spec: {tf_action_spec}")
+    logger.info(f"tf_time_step_spec: {tf_time_step_spec}")
     return tf_observation_spec, tf_action_spec, tf_time_step_spec
 
 
@@ -104,7 +104,7 @@ def get_tf_agent_specs(logger, agent, tf_action_spec):
             agent[0].collect_data_spec.next_step_type,
             agent[0].collect_data_spec.reward,
             agent[0].collect_data_spec.discount)
-    logger.info(f"tf agent collect_data_spec: {tf_agent_collect_data_spec}")
+    logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
     return tf_agent_collect_data_spec
 
 
@@ -186,7 +186,7 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
                 tensor_spec.from_spec(
                     BoundedArraySpec(
                         shape=(),
-                        dtype=np.int64, 
+                        dtype=np.int32, # CartPole's action_spec dtype =int64. ActionDiscreteWrapper(DaisoSokcho)'s =int32
                         name=f'action{ix}', 
                         minimum=0, 
                         maximum=mx)))
@@ -324,9 +324,9 @@ def get_replay_buffer(config, logger, tf_train_env, agent_collect_data_spec):
 
 
 def run_and_get_driver(config, py_train_env, tf_train_env, tf_random_policy, agent_collect_policy, observers):
-    num_initial_collect_steps = config['num_initial_collect_steps']
+    num_init_collect_steps = config['num_init_collect_steps']
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
-    num_initial_collect_episodes = config['num_initial_collect_episodes']
+    num_init_collect_episodes = config['num_init_collect_episodes']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
 
     time_step = py_train_env.reset()
@@ -336,7 +336,7 @@ def run_and_get_driver(config, py_train_env, tf_train_env, tf_random_policy, age
                 py_train_env,
                 py_tf_eager_policy.PyTFEagerPolicy(tf_random_policy, use_tf_function=True),
                 observers,
-                max_steps=num_initial_collect_steps)
+                max_steps=num_init_collect_steps)
             init_driver.run(time_step) 
         elif driverName in ['dynamic_step']:
             init_driver = dynamic_step_driver.DynamicStepDriver(
@@ -344,7 +344,7 @@ def run_and_get_driver(config, py_train_env, tf_train_env, tf_random_policy, age
                 tf_random_policy,
                 observers=observers,
                 num_steps=num_collect_steps_per_train_step)
-            for _ in range(num_initial_collect_steps):
+            for _ in range(num_init_collect_steps):
                 init_driver.run()
         elif driverName in ['dynamic_episode']:
             init_driver = dynamic_episode_driver.DynamicEpisodeDriver(
@@ -352,7 +352,7 @@ def run_and_get_driver(config, py_train_env, tf_train_env, tf_random_policy, age
                 tf_random_policy,
                 observers=observers,
                 num_episodes=num_collect_episodes_per_train_step,)
-            for _ in range(num_initial_collect_episodes):
+            for _ in range(num_init_collect_episodes):
                 init_driver.run()
 
     if driverName in ['py']:

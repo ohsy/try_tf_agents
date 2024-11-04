@@ -12,7 +12,7 @@
     "replay_buffer" : "tf_uniform",
     "driver" : "dynamic_step",
 
-    "num_train_steps" : 20000, 
+    "num_train_steps" : 50000, 
     "num_train_steps_to_log" : 200,
     "num_train_steps_to_eval" : 1000, 
     "num_train_steps_to_save_model" : 10,
@@ -37,7 +37,7 @@
     "# critic_joint_fc_layer_params" : "[128, 16] for Pendulum",
     "value_fc_layer_params" : [256, 256],
 
-    "batch_size" : 4, 
+    "batch_size" : 64, 
     "learning_rate" : 1e-3,
     "actor_learning_rate" : 3e-4,
     "critic_learning_rate" : 6e-4,
@@ -47,11 +47,11 @@
     "gamma" : 0.99, 
     "reward_scale_factor" : 1.0,
 
-    "replay_buffer_max_length" : 5000,
+    "replay_buffer_max_length" : 10000,
     "# num_frames = capacity = max_length * env.batch_size and default env.batch_size = 1" : null, 
-    "num_initial_collect_steps" : 5000,
+    "num_init_collect_steps" : 10000,
     "num_collect_steps_per_train_step" : 1,
-    "num_initial_collect_episodes" : 10,
+    "num_init_collect_episodes" : 10,
     "num_collect_episodes_per_train_step" : 1,
 
     "# for PPO" : null,
