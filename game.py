@@ -76,7 +76,7 @@ class Game:
                 before = after
             if train_step % self.num_train_steps_to_eval == 0:
                 avg_return = compute_avg_return(tf_eval_env, agent.policy, self.num_episodes_to_eval)
-                logger.info(f'train_step={train_step}: average return={avg_return:.3f}')
+                logger.info(f'train_step={train_step}: avg_return={avg_return:.3f}')
                 returns.append(avg_return)
 
         after_all = time.time()

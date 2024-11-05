@@ -114,10 +114,6 @@ class MultiAgentGame:
     def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator):
 
         before_all = time.time()
-        # Collect random policy steps and save to the replay buffer.
-        tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_train_env.time_step_spec(), ag.action_spec) for ag in agents]
-        for _ in range(self.num_init_collect_steps):
-            collect_trajectory(logger, tf_train_env, replay_buffer, policies=tf_random_policies)
 
         # (Optional) Optimize by wrapping some of the code in a graph using TF function.
         for agent in agents: 
@@ -157,7 +153,7 @@ class MultiAgentGame:
                 before = after
             if train_step % self.num_train_steps_to_eval == 0:
                 avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
-                logger.info(f'train_step={train_step}: average return={avg_return:.3f}')
+                logger.info(f'train_step={train_step}: avg_return={avg_return:.3f}')
                 returns.append(avg_return)
 
         after_all = time.time()
