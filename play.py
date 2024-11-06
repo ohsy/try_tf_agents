@@ -93,23 +93,21 @@ def get_tf_env_specs(logger, tf_env, py_env):
     return tf_observation_spec, tf_action_spec, tf_time_step_spec
 
 
-def get_tf_agent_specs(logger, agent, tf_action_spec):
-    if type(agent) is not list: 
-        tf_agent_collect_data_spec = agent.collect_data_spec 
-    else:
-        tf_agent_collect_data_spec = Trajectory(
-            agent[0].collect_data_spec.step_type,
-            agent[0].collect_data_spec.observation,
-            tf_action_spec,
-            agent[0].collect_data_spec.policy_info,
-            agent[0].collect_data_spec.next_step_type,
-            agent[0].collect_data_spec.reward,
-            agent[0].collect_data_spec.discount)
-    logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
+def get_tf_agent_specs_for_multiagent(agents, tf_action_spec):
+    tf_agent_collect_data_spec = Trajectory(
+        agents[0].collect_data_spec.step_type,
+        agents[0].collect_data_spec.observation,
+        tf_action_spec,
+        agents[0].collect_data_spec.policy_info,
+        agents[0].collect_data_spec.next_step_type,
+        agents[0].collect_data_spec.reward,
+        agents[0].collect_data_spec.discount)
     return tf_agent_collect_data_spec
 
 
 def get_env(config, envName, envWrapper):
+    num_actions_discretized = config['num_actions_discretized']
+
     if envName in ['CartPole-v0','Pendulum-v1','Reacher-v2']:
         py_train_env = suite_gym.load(envName)
         py_eval_env = suite_gym.load(envName)
@@ -121,8 +119,8 @@ def get_env(config, envName, envWrapper):
         py_eval_env = DaisoSokcho()
     elif envName in ['Pendulum-v1_discrete','Reacher-v2_discrete']:
         eName = envName.split('_discrete')[0]
-        py_train_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=5)
-        py_eval_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=5)
+        py_train_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions_discretized)
+        py_eval_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions_discretized)
     elif envName in ['DaisoSokcho_discrete']:
         py_train_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
         py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
@@ -175,44 +173,6 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
-        agent.initialize()
-        return agent
-
-    if agentName in ["DQN_multiagent"]:
-        tf_action_specs = []
-        q_nets = []
-        agents = []
-        if tf_action_spec.maximum.ndim == 0:  # spec.maximum is np.ndarray
-            maxima = np.full(tf_action_spec.shape, tf_action_spec.maximum)
-        else:
-            maxima = tf_action_spec.maximum
-
-        for ix, mx in enumerate(maxima):
-            tf_action_specs.append(
-                tensor_spec.from_spec(
-                    BoundedArraySpec(
-                        shape=(),
-                        dtype=np.int32, # CartPole's action_spec dtype =int64. ActionDiscreteWrapper(DaisoSokcho)'s =int32
-                        name=f'action{ix}', 
-                        minimum=0, 
-                        maximum=mx)))
-            q_nets.append(
-                q_network.QNetwork(
-                    tf_observation_spec,
-                    tf_action_specs[ix],
-                    fc_layer_params=qnet_fc_layer_params))
-            agents.append(
-                dqn_agent.DqnAgent(
-                    tf_time_step_spec,
-                    tf_action_specs[ix],
-                    q_network=q_nets[ix],
-                    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-                    td_errors_loss_fn=common.element_wise_squared_loss,
-                    debug_summaries=True,
-                    summarize_grads_and_vars=True,
-                    train_step_counter=tf.Variable(0, dtype=tf.int64)))
-            agents[ix].initialize()
-        return agents
 
     if agentName in ["CDQN"]:
         categorical_q_net = categorical_q_network.CategoricalQNetwork(
@@ -233,8 +193,6 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
-        agent.initialize()
-        return agent
 
     elif agentName in ["SAC"]:
         critic_net = critic_network.CriticNetwork(
@@ -267,8 +225,82 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=train_utils.create_train_step())
-        agent.initialize()
-        return agent
+
+    agent.initialize()
+    return agent
+
+
+def get_agents(config, tf_observation_spec, merged_tf_action_spec):
+    qnet_fc_layer_params = config['qnet_fc_layer_params']
+    learning_rate = config['learning_rate']
+    gamma = config['gamma']
+    # for CDQN
+    num_atoms = config['num_atoms']
+    min_q_value = config['min_q_value']
+    max_q_value = config['max_q_value']
+    n_step_update = config['n_step_update']
+
+    tf_action_specs = []
+    q_nets = []
+    agents = []
+    if merged_tf_action_spec.maximum.ndim == 0:  # spec.maximum is np.ndarray
+        maxima = np.full(merged_tf_action_spec.shape, merged_tf_action_spec.maximum)
+    else:
+        maxima = merged_tf_action_spec.maximum
+
+    for ix, mx in enumerate(maxima):
+        tf_action_specs.append(
+            tensor_spec.from_spec(
+                BoundedArraySpec(
+                    shape=(),
+                    dtype=np.int32, # CartPole's action_spec dtype =int64. ActionDiscreteWrapper(DaisoSokcho)'s =int32
+                    name=f'action{ix}', 
+                    minimum=0, 
+                    maximum=mx)))
+
+    if agentName in ["DQN_multiagent"]:
+        for ix, tf_action_spec in enumerate(tf_action_specs):
+            q_nets.append(
+                q_network.QNetwork(
+                    tf_observation_spec,
+                    tf_action_spec,
+                    fc_layer_params=qnet_fc_layer_params))
+            agents.append(
+                dqn_agent.DqnAgent(
+                    tf_time_step_spec,
+                    tf_action_spec,
+                    q_network=q_nets[ix],
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                    td_errors_loss_fn=common.element_wise_squared_loss,
+                    debug_summaries=True,
+                    summarize_grads_and_vars=True,
+                    train_step_counter=tf.Variable(0, dtype=tf.int64)))
+
+    elif agentName in ["CDQN_multiagent"]:
+        for ix, tf_action_spec in enumerate(tf_action_specs):
+            q_nets.append(
+                categorical_q_network.CategoricalQNetwork(
+                    tf_observation_spec,
+                    tf_action_spec,
+                    num_atoms=num_atoms,
+                    fc_layer_params=qnet_fc_layer_params))
+            agents.append(
+                categorical_dqn_agent.CategoricalDqnAgent(
+                    tf_time_step_spec,
+                    tf_action_spec,
+                    categorical_q_network=q_nets[ix],
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                    min_q_value=min_q_value,
+                    max_q_value=max_q_value,
+                    n_step_update=n_step_update,
+                    td_errors_loss_fn=common.element_wise_squared_loss,
+                    gamma=gamma,
+                    debug_summaries=True,
+                    summarize_grads_and_vars=True,
+                    train_step_counter=tf.Variable(0, dtype=tf.int64)))
+
+    agents[ix].initialize()
+    return agents
 
 
 def get_replay_buffer(config, logger, tf_train_env, agent_collect_data_spec):
@@ -478,7 +510,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--environment', type=str, 
             choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], help="environment wrapper")
-    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','SAC'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -511,13 +543,17 @@ if __name__ == "__main__":
     py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, envName, envWrapper)
     tf_observation_spec, tf_action_spec, tf_time_step_spec = get_tf_env_specs(logger, tf_train_env, py_train_env)
 
-    agent = get_agent(config, tf_observation_spec, tf_action_spec)  # one agent or list of agents if multiagent
-    tf_agent_collect_data_spec = get_tf_agent_specs(logger, agent, tf_action_spec)
+    if 'multiagent' in agentName:
+        agents = get_agents(config, tf_observation_spec, tf_action_spec)  # list of agents 
+        tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
+    else: 
+        agent = get_agent(config, tf_observation_spec, tf_action_spec)  # one agent 
+        tf_agent_collect_data_spec = agent.collect_data_spec 
+    logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
     replay_buffer, iterator, observers = get_replay_buffer(config, logger, tf_train_env, tf_agent_collect_data_spec)
 
     if 'multiagent' in agentName:
-        agents = agent  # list
         tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_time_step_spec, ag.action_spec) for ag in agents]
         random_return = multiagent_compute_avg_return(tf_eval_env, policies=tf_random_policies)
         logger.info(f"random_policy avg_return = {random_return}")
