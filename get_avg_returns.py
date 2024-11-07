@@ -35,7 +35,7 @@ def save_to_csv(data, output_file):
         rows.append(row)
     
     # Create a DataFrame and save it to a CSV file
-    columns = ['train_step'] + [f'avg_return_{i + 1}' for i in range(len(avg_returns))] + ['avg_of_avg_returns']
+    columns = ['train_step'] + [f'avg_return_{i}' for i in range(len(avg_returns))] + ['avg_of_avg_returns']
     df = pd.DataFrame(rows, columns=columns)
     df.to_csv(output_file, index=False)
     print(f"Output saved to {output_file}")
