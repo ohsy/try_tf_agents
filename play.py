@@ -536,9 +536,9 @@ if __name__ == "__main__":
     checkpointPath_toSave = f'{resultPath}/model'
     logger.info(f"config={config}")
     logger.info(f"args={args}")
-    logger.info(f"environment = {envName}")  
-    logger.info(f"envWrapper = {envWrapper}")  
-    logger.info(f"agent = {agentName}")
+    logger.info(f"environment={envName}")  
+    logger.info(f"envWrapper={envWrapper}")  
+    logger.info(f"agent={agentName}")
 
     py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, envName, envWrapper)
     tf_observation_spec, tf_action_spec, tf_time_step_spec = get_tf_env_specs(logger, tf_train_env, py_train_env)
@@ -556,7 +556,7 @@ if __name__ == "__main__":
     if 'multiagent' in agentName:
         tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_time_step_spec, ag.action_spec) for ag in agents]
         random_return = multiagent_compute_avg_return(tf_eval_env, policies=tf_random_policies)
-        logger.info(f"random_policy avg_return = {random_return}")
+        logger.info(f"random_policy avg_return={random_return}")
         logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         if checkpointPath is None:
@@ -572,7 +572,7 @@ if __name__ == "__main__":
     else: 
         tf_random_policy = random_tf_policy.RandomTFPolicy(tf_time_step_spec, tf_action_spec)
         random_return = compute_avg_return(tf_eval_env, tf_random_policy)
-        logger.info(f"random_policy avg_return = {random_return}")
+        logger.info(f"random_policy avg_return={random_return}")
         logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.

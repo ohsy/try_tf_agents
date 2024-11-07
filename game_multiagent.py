@@ -149,11 +149,11 @@ class MultiAgentGame:
             train_step = agent.train_step_counter.numpy()
             if train_step % self.num_train_steps_to_log == 0:
                 after = time.time()
-                logger.info(f'train_step={train_step}: loss={train_loss:.3f}, time={after-before:.3f}')
+                logger.info(f'train_step={train_step} loss={train_loss:.3f} time={after-before:.3f}')
                 before = after
             if train_step % self.num_train_steps_to_eval == 0:
                 avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
-                logger.info(f'train_step={train_step}: avg_return={avg_return:.3f}')
+                logger.info(f'train_step={train_step} avg_return={avg_return:.3f}')
                 returns.append(avg_return)
 
         after_all = time.time()
