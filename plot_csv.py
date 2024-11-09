@@ -21,6 +21,7 @@ def main(file_prefix):
     plt.ylabel('Average Return')
     plt.grid()
     plt.xticks(rotation=45)
+    plt.ylim(-60,0)
 
     # Step 3: Save the plot to a file
     # You can specify the file format by changing the extension (e.g., .png, .jpg, .pdf)

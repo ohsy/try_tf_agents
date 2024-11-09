@@ -105,8 +105,7 @@ def get_tf_agent_specs_for_multiagent(agents, tf_action_spec):
     return tf_agent_collect_data_spec
 
 
-def get_env(config, envName, envWrapper):
-    num_actions_discretized = config['num_actions_discretized']
+def get_env(config, envName, envWrapper, num_actions_discretized):
 
     if envName in ['CartPole-v0','Pendulum-v1','Reacher-v2']:
         py_train_env = suite_gym.load(envName)
@@ -506,6 +505,7 @@ if __name__ == "__main__":
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
+    print(f"online arguments={sys.argv}", flush=True)
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, 
             choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete'])
@@ -515,6 +515,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path, which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
+    parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
     args = parser.parse_args()
     args = parser.parse_args()
 
@@ -525,6 +526,7 @@ if __name__ == "__main__":
     driverName = config["driver"] if args.driver is None else args.driver
     checkpointPath = args.checkpoint_path
     reverb_checkpointPath = args.reverb_checkpoint_path
+    num_actions = config["num_actions_discretized"] if args.environment is None else args.num_actions
 
     date_time = datetime.now().strftime('%m%d_%H%M%S')
     resultPath = f"{config['resultPath']}/{envName}_{agentName}_{date_time}"
@@ -540,7 +542,7 @@ if __name__ == "__main__":
     logger.info(f"envWrapper={envWrapper}")  
     logger.info(f"agent={agentName}")
 
-    py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, envName, envWrapper)
+    py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, envName, envWrapper, num_actions)
     tf_observation_spec, tf_action_spec, tf_time_step_spec = get_tf_env_specs(logger, tf_train_env, py_train_env)
 
     if 'multiagent' in agentName:

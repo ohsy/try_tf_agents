@@ -105,9 +105,9 @@ class MultiAgentGame:
         self.reverb_port = config['reverb_port']
         self.num_init_collect_steps = config['num_init_collect_steps']
         self.num_train_steps = config['num_train_steps']
-        self.num_train_steps_to_log = config['num_train_steps_to_log']
-        self.num_train_steps_to_eval = config['num_train_steps_to_eval']
-        self.num_train_steps_to_save_model = config['num_train_steps_to_save_model']
+        self.num_train_steps_to_log = (int) (self.num_train_steps / 250)
+        self.num_train_steps_to_eval = (int) (self.num_train_steps / 50)
+        self.num_train_steps_to_save_model = (int) (self.num_train_steps / 5)
         self.num_episodes_to_eval = config['num_episodes_to_eval']
         self.num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
 
