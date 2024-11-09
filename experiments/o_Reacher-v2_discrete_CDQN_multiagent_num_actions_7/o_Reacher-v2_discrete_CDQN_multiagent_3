@@ -1,0 +1,363 @@
+2024-11-08 04:21:15.491507: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2024-11-08 04:21:15.491732: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2024-11-08 04:21:15.492462: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2024-11-08 04:21:15.497182: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2024-11-08 04:21:16.043417: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2024-11-08 04:21:17.586103: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+2024-11-08 04:21:17.586130: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:129] retrieving CUDA diagnostic information for host: sohubuntuserver
+2024-11-08 04:21:17.586135: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:136] hostname: sohubuntuserver
+2024-11-08 04:21:17.586211: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:159] libcuda reported version is: 555.42.2
+2024-11-08 04:21:17.586224: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:163] kernel reported version is: 555.42.2
+2024-11-08 04:21:17.586228: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:241] kernel version seems to match DSO: 555.42.2
+2024-11-08 04:21:17,598 - INFO - config={'dtype': 'float32', 'intdtype': 'int32', 'resultPath': './result', 'isGPUUsed': False, 'log_level_name': 'INFO', '# log_level_name': 'like INFO or DEBUG', 'environment': 'CartPole-v0', 'environment_wrapper': None, 'agent': 'DQN', 'replay_buffer': 'tf_uniform', 'driver': 'dynamic_step', 'num_actions_discretized': 7, '# num_actions_discretized: for ActionDiscretizeWrapper': None, 'num_train_steps': 50000, 'num_train_steps_to_log': 200, 'num_train_steps_to_eval': 1000, 'num_train_steps_to_save_model': 10, 'num_episodes_to_eval': 10, '# for CDQN': None, 'num_atoms': 51, 'min_q_value': -20, 'max_q_value': 20, 'n_step_update': 2, 'qnet_fc_layer_params': [128, 64], 'actor_fc_layer_params': [256, 256], '# actor_fc_layer_params': '[32, 32] for Pendulum', 'critic_observation_fc_layer_params': None, '#critic_observation_fc_layer_params': [64, 64], '# critic_observation_fc_layer_params': '[32, 32] for Pendulum', 'critic_action_fc_layer_params': None, '#critic_action_fc_layer_params': [64, 64], '# critic_action_fc_layer_params': '[32, 32] for Pendulum', 'critic_joint_fc_layer_params': [256, 256], '# critic_joint_fc_layer_params': '[128, 16] for Pendulum', 'value_fc_layer_params': [256, 256], 'batch_size': 64, 'learning_rate': 0.001, 'actor_learning_rate': 0.0003, 'critic_learning_rate': 0.0006, 'alpha_learning_rate': 0.0003, 'target_update_tau': 0.005, 'target_update_period': 1, 'gamma': 0.99, 'reward_scale_factor': 1.0, 'replay_buffer_max_length': 10000, '# num_frames = capacity = max_length * env.batch_size and default env.batch_size = 1': None, 'num_init_collect_steps': 10000, 'num_collect_steps_per_train_step': 1, 'num_init_collect_episodes': 10, 'num_collect_episodes_per_train_step': 30, '# for PPO': None, 'num_parallel_envs': 30, 'num_env_steps': 20000, 'num_epochs': 25, 'reverb_port': 8008, '#  ending': None}
+2024-11-08 04:21:17,598 - INFO - args=Namespace(environment='Reacher-v2_discrete', environment_wrapper=None, agent='CDQN_multiagent', replay_buffer=None, driver=None, checkpoint_path=None, reverb_checkpoint_path=None)
+2024-11-08 04:21:17,598 - INFO - environment=Reacher-v2_discrete
+2024-11-08 04:21:17,598 - INFO - envWrapper=None
+2024-11-08 04:21:17,598 - INFO - agent=CDQN_multiagent
+2024-11-08 04:21:17,692 - INFO - tf_observation_spec: BoundedTensorSpec(shape=(11,), dtype=tf.float64, name='observation', minimum=array(-1.797693e+308), maximum=array(1.797693e+308))
+2024-11-08 04:21:17,692 - INFO - tf_action_spec: BoundedTensorSpec(shape=(2,), dtype=tf.int32, name='action', minimum=array(0, dtype=int32), maximum=array(6, dtype=int32))
+2024-11-08 04:21:17,693 - INFO - tf_time_step_spec: TimeStep(
+{'step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type'),
+ 'reward': TensorSpec(shape=(), dtype=tf.float32, name='reward'),
+ 'discount': BoundedTensorSpec(shape=(), dtype=tf.float32, name='discount', minimum=array(0., dtype=float32), maximum=array(1., dtype=float32)),
+ 'observation': BoundedTensorSpec(shape=(11,), dtype=tf.float64, name='observation', minimum=array(-1.797693e+308), maximum=array(1.797693e+308))})
+2024-11-08 04:21:17,799 - INFO - tf_agent_collect_data_spec: Trajectory(
+{'step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type'),
+ 'observation': BoundedTensorSpec(shape=(11,), dtype=tf.float64, name='observation', minimum=array(-1.797693e+308), maximum=array(1.797693e+308)),
+ 'action': BoundedTensorSpec(shape=(2,), dtype=tf.int32, name='action', minimum=array(0, dtype=int32), maximum=array(6, dtype=int32)),
+ 'policy_info': (),
+ 'next_step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type'),
+ 'reward': TensorSpec(shape=(), dtype=tf.float32, name='reward'),
+ 'discount': BoundedTensorSpec(shape=(), dtype=tf.float32, name='discount', minimum=array(0., dtype=float32), maximum=array(1., dtype=float32))})
+WARNING:tensorflow:From /home/soh/tf_venv/lib/python3.10/site-packages/tensorflow/python/autograph/impl/api.py:377: ReplayBuffer.get_next (from tf_agents.replay_buffers.replay_buffer) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `as_dataset(..., single_deterministic_pass=False) instead.
+2024-11-08 04:21:17,908 - WARNING - From /home/soh/tf_venv/lib/python3.10/site-packages/tensorflow/python/autograph/impl/api.py:377: ReplayBuffer.get_next (from tf_agents.replay_buffers.replay_buffer) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `as_dataset(..., single_deterministic_pass=False) instead.
+2024-11-08 04:21:19,554 - INFO - random_policy avg_return=-54.71379470825195
+2024-11-08 04:21:19,554 - INFO - replay_buffer.capacity=10000
+2024-11-08 04:21:19,557 - INFO - before filling or restoring with checkpointer, replay_buffer.num_frames()=0
+2024-11-08 04:21:50,752 - INFO - after filling with random_policies, replay_buffer.num_frames()=10000
+2024-11-08 04:21:55,142 - INFO - before training, avg_return=-34.548240661621094
+WARNING:tensorflow:From /home/soh/tf_venv/lib/python3.10/site-packages/tensorflow/python/util/dispatch.py:1260: calling foldr_v2 (from tensorflow.python.ops.functional_ops) with back_prop=False is deprecated and will be removed in a future version.
+Instructions for updating:
+back_prop=False is deprecated. Consider using tf.stop_gradient instead.
+Instead of:
+results = tf.foldr(fn, elems, back_prop=False)
+Use:
+results = tf.nest.map_structure(tf.stop_gradient, tf.foldr(fn, elems))
+2024-11-08 04:21:55,242 - WARNING - From /home/soh/tf_venv/lib/python3.10/site-packages/tensorflow/python/util/dispatch.py:1260: calling foldr_v2 (from tensorflow.python.ops.functional_ops) with back_prop=False is deprecated and will be removed in a future version.
+Instructions for updating:
+back_prop=False is deprecated. Consider using tf.stop_gradient instead.
+Instead of:
+results = tf.foldr(fn, elems, back_prop=False)
+Use:
+results = tf.nest.map_structure(tf.stop_gradient, tf.foldr(fn, elems))
+2024-11-08 04:22:08,023 - INFO - train_step=200 loss=7.218 time=12.880
+2024-11-08 04:22:16,027 - INFO - train_step=400 loss=6.184 time=8.004
+2024-11-08 04:22:23,985 - INFO - train_step=600 loss=6.031 time=7.959
+2024-11-08 04:22:31,906 - INFO - train_step=800 loss=5.650 time=7.921
+2024-11-08 04:22:39,900 - INFO - train_step=1000 loss=5.953 time=7.994
+2024-11-08 04:22:45,872 - INFO - train_step=1000 avg_return=-14.017
+2024-11-08 04:22:52,912 - INFO - train_step=1200 loss=5.747 time=13.013
+2024-11-08 04:23:00,838 - INFO - train_step=1400 loss=5.254 time=7.926
+2024-11-08 04:23:08,821 - INFO - train_step=1600 loss=5.765 time=7.983
+2024-11-08 04:23:16,856 - INFO - train_step=1800 loss=5.831 time=8.035
+2024-11-08 04:23:24,744 - INFO - train_step=2000 loss=5.668 time=7.888
+2024-11-08 04:23:30,605 - INFO - train_step=2000 avg_return=-11.168
+2024-11-08 04:23:37,472 - INFO - train_step=2200 loss=5.698 time=12.728
+2024-11-08 04:23:45,355 - INFO - train_step=2400 loss=5.734 time=7.884
+2024-11-08 04:23:53,283 - INFO - train_step=2600 loss=5.930 time=7.927
+2024-11-08 04:24:01,284 - INFO - train_step=2800 loss=5.882 time=8.002
+2024-11-08 04:24:09,358 - INFO - train_step=3000 loss=5.892 time=8.073
+2024-11-08 04:24:15,691 - INFO - train_step=3000 avg_return=-26.216
+2024-11-08 04:24:22,484 - INFO - train_step=3200 loss=5.969 time=13.126
+2024-11-08 04:24:30,564 - INFO - train_step=3400 loss=6.051 time=8.080
+2024-11-08 04:24:38,592 - INFO - train_step=3600 loss=5.983 time=8.028
+2024-11-08 04:24:46,423 - INFO - train_step=3800 loss=6.011 time=7.831
+2024-11-08 04:24:54,374 - INFO - train_step=4000 loss=6.057 time=7.951
+2024-11-08 04:25:00,690 - INFO - train_step=4000 avg_return=-12.746
+2024-11-08 04:25:07,263 - INFO - train_step=4200 loss=6.084 time=12.889
+2024-11-08 04:25:15,399 - INFO - train_step=4400 loss=6.154 time=8.136
+2024-11-08 04:25:23,365 - INFO - train_step=4600 loss=6.174 time=7.966
+2024-11-08 04:25:31,487 - INFO - train_step=4800 loss=6.147 time=8.122
+2024-11-08 04:25:39,371 - INFO - train_step=5000 loss=6.115 time=7.884
+2024-11-08 04:25:46,080 - INFO - train_step=5000 avg_return=-13.665
+2024-11-08 04:25:52,837 - INFO - train_step=5200 loss=6.195 time=13.466
+2024-11-08 04:26:00,882 - INFO - train_step=5400 loss=6.141 time=8.044
+2024-11-08 04:26:08,944 - INFO - train_step=5600 loss=6.209 time=8.062
+2024-11-08 04:26:17,042 - INFO - train_step=5800 loss=6.230 time=8.098
+2024-11-08 04:26:25,094 - INFO - train_step=6000 loss=6.769 time=8.052
+2024-11-08 04:26:31,477 - INFO - train_step=6000 avg_return=-15.292
+2024-11-08 04:26:38,159 - INFO - train_step=6200 loss=6.255 time=13.065
+2024-11-08 04:26:46,037 - INFO - train_step=6400 loss=6.262 time=7.877
+2024-11-08 04:26:54,154 - INFO - train_step=6600 loss=6.076 time=8.117
+2024-11-08 04:27:02,013 - INFO - train_step=6800 loss=6.136 time=7.859
+2024-11-08 04:27:09,948 - INFO - train_step=7000 loss=6.109 time=7.936
+2024-11-08 04:27:16,436 - INFO - train_step=7000 avg_return=-14.444
+2024-11-08 04:27:22,809 - INFO - train_step=7200 loss=6.134 time=12.861
+2024-11-08 04:27:30,483 - INFO - train_step=7400 loss=5.958 time=7.674
+2024-11-08 04:27:38,504 - INFO - train_step=7600 loss=6.238 time=8.021
+2024-11-08 04:27:46,485 - INFO - train_step=7800 loss=6.186 time=7.981
+2024-11-08 04:27:54,374 - INFO - train_step=8000 loss=6.004 time=7.888
+2024-11-08 04:28:01,064 - INFO - train_step=8000 avg_return=-12.908
+2024-11-08 04:28:07,347 - INFO - train_step=8200 loss=6.171 time=12.973
+2024-11-08 04:28:15,179 - INFO - train_step=8400 loss=5.945 time=7.832
+2024-11-08 04:28:23,248 - INFO - train_step=8600 loss=6.030 time=8.069
+2024-11-08 04:28:31,222 - INFO - train_step=8800 loss=6.019 time=7.974
+2024-11-08 04:28:39,209 - INFO - train_step=9000 loss=6.095 time=7.988
+2024-11-08 04:28:46,216 - INFO - train_step=9000 avg_return=-13.593
+2024-11-08 04:28:52,765 - INFO - train_step=9200 loss=6.024 time=13.556
+2024-11-08 04:29:00,461 - INFO - train_step=9400 loss=6.102 time=7.696
+2024-11-08 04:29:08,465 - INFO - train_step=9600 loss=6.156 time=8.004
+2024-11-08 04:29:16,295 - INFO - train_step=9800 loss=5.976 time=7.830
+2024-11-08 04:29:24,359 - INFO - train_step=10000 loss=5.982 time=8.064
+2024-11-08 04:29:31,629 - INFO - train_step=10000 avg_return=-16.480
+2024-11-08 04:29:38,311 - INFO - train_step=10200 loss=5.954 time=13.951
+2024-11-08 04:29:45,994 - INFO - train_step=10400 loss=6.094 time=7.683
+2024-11-08 04:29:54,039 - INFO - train_step=10600 loss=6.660 time=8.045
+2024-11-08 04:30:02,045 - INFO - train_step=10800 loss=6.207 time=8.007
+2024-11-08 04:30:10,115 - INFO - train_step=11000 loss=6.083 time=8.070
+2024-11-08 04:30:17,068 - INFO - train_step=11000 avg_return=-17.041
+2024-11-08 04:30:23,711 - INFO - train_step=11200 loss=6.102 time=13.596
+2024-11-08 04:30:31,264 - INFO - train_step=11400 loss=6.141 time=7.553
+2024-11-08 04:30:39,090 - INFO - train_step=11600 loss=5.940 time=7.826
+2024-11-08 04:30:46,954 - INFO - train_step=11800 loss=5.909 time=7.864
+2024-11-08 04:30:54,836 - INFO - train_step=12000 loss=5.937 time=7.882
+2024-11-08 04:31:01,992 - INFO - train_step=12000 avg_return=-15.280
+2024-11-08 04:31:08,624 - INFO - train_step=12200 loss=5.955 time=13.789
+2024-11-08 04:31:16,259 - INFO - train_step=12400 loss=6.049 time=7.635
+2024-11-08 04:31:24,335 - INFO - train_step=12600 loss=6.060 time=8.076
+2024-11-08 04:31:32,428 - INFO - train_step=12800 loss=6.098 time=8.093
+2024-11-08 04:31:40,443 - INFO - train_step=13000 loss=5.705 time=8.015
+2024-11-08 04:31:47,387 - INFO - train_step=13000 avg_return=-18.778
+2024-11-08 04:31:54,073 - INFO - train_step=13200 loss=6.001 time=13.631
+2024-11-08 04:32:01,707 - INFO - train_step=13400 loss=6.164 time=7.634
+2024-11-08 04:32:09,664 - INFO - train_step=13600 loss=5.962 time=7.957
+2024-11-08 04:32:17,580 - INFO - train_step=13800 loss=6.056 time=7.917
+2024-11-08 04:32:25,555 - INFO - train_step=14000 loss=5.991 time=7.974
+2024-11-08 04:32:32,516 - INFO - train_step=14000 avg_return=-16.651
+2024-11-08 04:32:39,166 - INFO - train_step=14200 loss=6.189 time=13.612
+2024-11-08 04:32:46,675 - INFO - train_step=14400 loss=6.458 time=7.509
+2024-11-08 04:32:54,665 - INFO - train_step=14600 loss=5.992 time=7.990
+2024-11-08 04:33:02,680 - INFO - train_step=14800 loss=6.162 time=8.015
+2024-11-08 04:33:10,683 - INFO - train_step=15000 loss=6.268 time=8.003
+2024-11-08 04:33:17,766 - INFO - train_step=15000 avg_return=-39.845
+2024-11-08 04:33:24,622 - INFO - train_step=15200 loss=6.184 time=13.939
+2024-11-08 04:33:32,288 - INFO - train_step=15400 loss=6.331 time=7.666
+2024-11-08 04:33:40,344 - INFO - train_step=15600 loss=6.173 time=8.056
+2024-11-08 04:33:48,460 - INFO - train_step=15800 loss=6.044 time=8.116
+2024-11-08 04:33:56,451 - INFO - train_step=16000 loss=5.974 time=7.991
+2024-11-08 04:34:03,315 - INFO - train_step=16000 avg_return=-12.549
+2024-11-08 04:34:09,702 - INFO - train_step=16200 loss=6.022 time=13.250
+2024-11-08 04:34:17,248 - INFO - train_step=16400 loss=6.726 time=7.546
+2024-11-08 04:34:25,270 - INFO - train_step=16600 loss=6.348 time=8.022
+2024-11-08 04:34:33,153 - INFO - train_step=16800 loss=6.248 time=7.883
+2024-11-08 04:34:41,005 - INFO - train_step=17000 loss=6.136 time=7.852
+2024-11-08 04:34:48,182 - INFO - train_step=17000 avg_return=-13.823
+2024-11-08 04:34:54,554 - INFO - train_step=17200 loss=6.026 time=13.549
+2024-11-08 04:35:02,116 - INFO - train_step=17400 loss=6.142 time=7.562
+2024-11-08 04:35:10,095 - INFO - train_step=17600 loss=6.023 time=7.980
+2024-11-08 04:35:18,177 - INFO - train_step=17800 loss=6.125 time=8.082
+2024-11-08 04:35:26,152 - INFO - train_step=18000 loss=5.967 time=7.975
+2024-11-08 04:35:33,536 - INFO - train_step=18000 avg_return=-22.856
+2024-11-08 04:35:40,168 - INFO - train_step=18200 loss=6.143 time=14.015
+2024-11-08 04:35:47,601 - INFO - train_step=18400 loss=6.041 time=7.433
+2024-11-08 04:35:55,756 - INFO - train_step=18600 loss=6.115 time=8.155
+2024-11-08 04:36:03,733 - INFO - train_step=18800 loss=6.121 time=7.977
+2024-11-08 04:36:11,830 - INFO - train_step=19000 loss=5.992 time=8.096
+2024-11-08 04:36:18,924 - INFO - train_step=19000 avg_return=-14.826
+2024-11-08 04:36:25,878 - INFO - train_step=19200 loss=6.158 time=14.049
+2024-11-08 04:36:33,381 - INFO - train_step=19400 loss=5.860 time=7.502
+2024-11-08 04:36:41,416 - INFO - train_step=19600 loss=6.089 time=8.035
+2024-11-08 04:36:49,424 - INFO - train_step=19800 loss=6.061 time=8.009
+2024-11-08 04:36:57,402 - INFO - train_step=20000 loss=6.135 time=7.978
+2024-11-08 04:37:04,560 - INFO - train_step=20000 avg_return=-16.341
+2024-11-08 04:37:11,559 - INFO - train_step=20200 loss=6.050 time=14.157
+2024-11-08 04:37:19,111 - INFO - train_step=20400 loss=6.102 time=7.552
+2024-11-08 04:37:27,124 - INFO - train_step=20600 loss=6.043 time=8.013
+2024-11-08 04:37:35,070 - INFO - train_step=20800 loss=6.165 time=7.946
+2024-11-08 04:37:43,076 - INFO - train_step=21000 loss=6.140 time=8.007
+2024-11-08 04:37:50,402 - INFO - train_step=21000 avg_return=-16.275
+2024-11-08 04:37:57,452 - INFO - train_step=21200 loss=6.025 time=14.376
+2024-11-08 04:38:04,772 - INFO - train_step=21400 loss=6.105 time=7.320
+2024-11-08 04:38:12,769 - INFO - train_step=21600 loss=5.944 time=7.997
+2024-11-08 04:38:20,899 - INFO - train_step=21800 loss=5.909 time=8.130
+2024-11-08 04:38:29,008 - INFO - train_step=22000 loss=6.098 time=8.110
+2024-11-08 04:38:35,643 - INFO - train_step=22000 avg_return=-20.833
+2024-11-08 04:38:42,529 - INFO - train_step=22200 loss=6.168 time=13.521
+2024-11-08 04:38:50,051 - INFO - train_step=22400 loss=6.178 time=7.522
+2024-11-08 04:38:58,116 - INFO - train_step=22600 loss=6.091 time=8.064
+2024-11-08 04:39:06,176 - INFO - train_step=22800 loss=6.043 time=8.060
+2024-11-08 04:39:14,320 - INFO - train_step=23000 loss=6.164 time=8.144
+2024-11-08 04:39:21,063 - INFO - train_step=23000 avg_return=-17.723
+2024-11-08 04:39:27,918 - INFO - train_step=23200 loss=6.108 time=13.599
+2024-11-08 04:39:35,338 - INFO - train_step=23400 loss=6.116 time=7.420
+2024-11-08 04:39:43,385 - INFO - train_step=23600 loss=6.058 time=8.047
+2024-11-08 04:39:51,483 - INFO - train_step=23800 loss=6.043 time=8.098
+2024-11-08 04:39:59,335 - INFO - train_step=24000 loss=6.007 time=7.852
+2024-11-08 04:40:06,475 - INFO - train_step=24000 avg_return=-22.366
+2024-11-08 04:40:13,405 - INFO - train_step=24200 loss=5.984 time=14.071
+2024-11-08 04:40:20,886 - INFO - train_step=24400 loss=6.099 time=7.481
+2024-11-08 04:40:29,038 - INFO - train_step=24600 loss=6.165 time=8.152
+2024-11-08 04:40:37,112 - INFO - train_step=24800 loss=6.431 time=8.074
+2024-11-08 04:40:45,185 - INFO - train_step=25000 loss=6.086 time=8.074
+2024-11-08 04:40:52,416 - INFO - train_step=25000 avg_return=-25.847
+2024-11-08 04:40:59,526 - INFO - train_step=25200 loss=6.011 time=14.341
+2024-11-08 04:41:06,961 - INFO - train_step=25400 loss=5.961 time=7.434
+2024-11-08 04:41:15,013 - INFO - train_step=25600 loss=6.031 time=8.052
+2024-11-08 04:41:22,975 - INFO - train_step=25800 loss=6.005 time=7.962
+2024-11-08 04:41:30,898 - INFO - train_step=26000 loss=6.086 time=7.923
+2024-11-08 04:41:37,753 - INFO - train_step=26000 avg_return=-13.377
+2024-11-08 04:41:44,831 - INFO - train_step=26200 loss=5.975 time=13.934
+2024-11-08 04:41:52,200 - INFO - train_step=26400 loss=5.820 time=7.368
+2024-11-08 04:42:00,248 - INFO - train_step=26600 loss=6.064 time=8.048
+2024-11-08 04:42:08,310 - INFO - train_step=26800 loss=5.918 time=8.063
+2024-11-08 04:42:16,232 - INFO - train_step=27000 loss=6.080 time=7.922
+2024-11-08 04:42:23,115 - INFO - train_step=27000 avg_return=-15.112
+2024-11-08 04:42:30,124 - INFO - train_step=27200 loss=6.121 time=13.892
+2024-11-08 04:42:37,466 - INFO - train_step=27400 loss=6.075 time=7.341
+2024-11-08 04:42:45,505 - INFO - train_step=27600 loss=6.236 time=8.039
+2024-11-08 04:42:53,506 - INFO - train_step=27800 loss=5.981 time=8.001
+2024-11-08 04:43:01,462 - INFO - train_step=28000 loss=6.031 time=7.956
+2024-11-08 04:43:08,768 - INFO - train_step=28000 avg_return=-12.284
+2024-11-08 04:43:15,842 - INFO - train_step=28200 loss=6.020 time=14.380
+2024-11-08 04:43:23,206 - INFO - train_step=28400 loss=5.959 time=7.364
+2024-11-08 04:43:31,250 - INFO - train_step=28600 loss=5.900 time=8.043
+2024-11-08 04:43:39,316 - INFO - train_step=28800 loss=5.969 time=8.067
+2024-11-08 04:43:47,226 - INFO - train_step=29000 loss=5.974 time=7.909
+2024-11-08 04:43:54,477 - INFO - train_step=29000 avg_return=-21.447
+2024-11-08 04:44:01,617 - INFO - train_step=29200 loss=5.967 time=14.391
+2024-11-08 04:44:08,944 - INFO - train_step=29400 loss=5.915 time=7.327
+2024-11-08 04:44:16,886 - INFO - train_step=29600 loss=5.834 time=7.942
+2024-11-08 04:44:24,919 - INFO - train_step=29800 loss=5.891 time=8.032
+2024-11-08 04:44:32,630 - INFO - train_step=30000 loss=5.954 time=7.712
+2024-11-08 04:44:39,775 - INFO - train_step=30000 avg_return=-13.298
+2024-11-08 04:44:47,077 - INFO - train_step=30200 loss=6.025 time=14.446
+2024-11-08 04:44:54,412 - INFO - train_step=30400 loss=6.052 time=7.336
+2024-11-08 04:45:02,348 - INFO - train_step=30600 loss=5.695 time=7.936
+2024-11-08 04:45:10,328 - INFO - train_step=30800 loss=5.863 time=7.981
+2024-11-08 04:45:18,279 - INFO - train_step=31000 loss=6.023 time=7.951
+2024-11-08 04:45:25,586 - INFO - train_step=31000 avg_return=-17.864
+2024-11-08 04:45:32,824 - INFO - train_step=31200 loss=5.942 time=14.545
+2024-11-08 04:45:40,209 - INFO - train_step=31400 loss=6.004 time=7.385
+2024-11-08 04:45:48,205 - INFO - train_step=31600 loss=5.887 time=7.997
+2024-11-08 04:45:56,291 - INFO - train_step=31800 loss=5.718 time=8.085
+2024-11-08 04:46:04,014 - INFO - train_step=32000 loss=5.894 time=7.724
+2024-11-08 04:46:10,933 - INFO - train_step=32000 avg_return=-18.475
+2024-11-08 04:46:18,128 - INFO - train_step=32200 loss=5.721 time=14.113
+2024-11-08 04:46:25,447 - INFO - train_step=32400 loss=5.917 time=7.319
+2024-11-08 04:46:33,374 - INFO - train_step=32600 loss=5.826 time=7.927
+2024-11-08 04:46:41,476 - INFO - train_step=32800 loss=5.921 time=8.102
+2024-11-08 04:46:49,417 - INFO - train_step=33000 loss=5.844 time=7.941
+2024-11-08 04:46:56,545 - INFO - train_step=33000 avg_return=-14.771
+2024-11-08 04:47:03,836 - INFO - train_step=33200 loss=5.925 time=14.419
+2024-11-08 04:47:11,342 - INFO - train_step=33400 loss=5.933 time=7.506
+2024-11-08 04:47:19,282 - INFO - train_step=33600 loss=5.922 time=7.939
+2024-11-08 04:47:27,301 - INFO - train_step=33800 loss=6.062 time=8.019
+2024-11-08 04:47:34,960 - INFO - train_step=34000 loss=5.894 time=7.660
+2024-11-08 04:47:42,157 - INFO - train_step=34000 avg_return=-16.074
+2024-11-08 04:47:49,591 - INFO - train_step=34200 loss=5.996 time=14.630
+2024-11-08 04:47:56,943 - INFO - train_step=34400 loss=5.886 time=7.352
+2024-11-08 04:48:04,854 - INFO - train_step=34600 loss=5.937 time=7.912
+2024-11-08 04:48:12,839 - INFO - train_step=34800 loss=6.011 time=7.985
+2024-11-08 04:48:20,419 - INFO - train_step=35000 loss=5.983 time=7.580
+2024-11-08 04:48:27,677 - INFO - train_step=35000 avg_return=-13.290
+2024-11-08 04:48:35,038 - INFO - train_step=35200 loss=6.127 time=14.619
+2024-11-08 04:48:42,500 - INFO - train_step=35400 loss=5.826 time=7.462
+2024-11-08 04:48:50,350 - INFO - train_step=35600 loss=5.872 time=7.850
+2024-11-08 04:48:58,431 - INFO - train_step=35800 loss=5.929 time=8.082
+2024-11-08 04:49:05,956 - INFO - train_step=36000 loss=5.985 time=7.525
+2024-11-08 04:49:12,998 - INFO - train_step=36000 avg_return=-14.538
+2024-11-08 04:49:20,393 - INFO - train_step=36200 loss=5.729 time=14.436
+2024-11-08 04:49:27,933 - INFO - train_step=36400 loss=6.015 time=7.540
+2024-11-08 04:49:35,714 - INFO - train_step=36600 loss=6.026 time=7.781
+2024-11-08 04:49:43,733 - INFO - train_step=36800 loss=5.985 time=8.018
+2024-11-08 04:49:51,324 - INFO - train_step=37000 loss=6.161 time=7.592
+2024-11-08 04:49:58,588 - INFO - train_step=37000 avg_return=-19.046
+2024-11-08 04:50:06,040 - INFO - train_step=37200 loss=6.093 time=14.716
+2024-11-08 04:50:13,388 - INFO - train_step=37400 loss=6.103 time=7.348
+2024-11-08 04:50:21,275 - INFO - train_step=37600 loss=6.082 time=7.887
+2024-11-08 04:50:29,220 - INFO - train_step=37800 loss=6.022 time=7.944
+2024-11-08 04:50:36,714 - INFO - train_step=38000 loss=6.026 time=7.494
+2024-11-08 04:50:43,882 - INFO - train_step=38000 avg_return=-17.030
+2024-11-08 04:50:51,369 - INFO - train_step=38200 loss=5.896 time=14.655
+2024-11-08 04:50:58,746 - INFO - train_step=38400 loss=5.924 time=7.377
+2024-11-08 04:51:06,538 - INFO - train_step=38600 loss=5.959 time=7.793
+2024-11-08 04:51:14,514 - INFO - train_step=38800 loss=5.986 time=7.976
+2024-11-08 04:51:22,040 - INFO - train_step=39000 loss=6.084 time=7.526
+2024-11-08 04:51:29,344 - INFO - train_step=39000 avg_return=-19.031
+2024-11-08 04:51:36,787 - INFO - train_step=39200 loss=5.986 time=14.747
+2024-11-08 04:51:44,196 - INFO - train_step=39400 loss=6.082 time=7.408
+2024-11-08 04:51:51,873 - INFO - train_step=39600 loss=6.073 time=7.678
+2024-11-08 04:51:59,886 - INFO - train_step=39800 loss=5.885 time=8.013
+2024-11-08 04:52:07,606 - INFO - train_step=40000 loss=5.879 time=7.720
+2024-11-08 04:52:15,065 - INFO - train_step=40000 avg_return=-10.202
+2024-11-08 04:52:22,469 - INFO - train_step=40200 loss=6.010 time=14.863
+2024-11-08 04:52:29,955 - INFO - train_step=40400 loss=6.092 time=7.487
+2024-11-08 04:52:37,727 - INFO - train_step=40600 loss=5.997 time=7.771
+2024-11-08 04:52:45,754 - INFO - train_step=40800 loss=6.045 time=8.027
+2024-11-08 04:52:53,196 - INFO - train_step=41000 loss=5.994 time=7.442
+2024-11-08 04:53:00,357 - INFO - train_step=41000 avg_return=-9.096
+2024-11-08 04:53:07,768 - INFO - train_step=41200 loss=6.075 time=14.572
+2024-11-08 04:53:15,205 - INFO - train_step=41400 loss=6.114 time=7.437
+2024-11-08 04:53:22,867 - INFO - train_step=41600 loss=6.097 time=7.663
+2024-11-08 04:53:31,007 - INFO - train_step=41800 loss=6.117 time=8.140
+2024-11-08 04:53:38,364 - INFO - train_step=42000 loss=6.089 time=7.357
+2024-11-08 04:53:45,868 - INFO - train_step=42000 avg_return=-18.004
+2024-11-08 04:53:53,390 - INFO - train_step=42200 loss=6.093 time=15.026
+2024-11-08 04:54:00,737 - INFO - train_step=42400 loss=6.052 time=7.348
+2024-11-08 04:54:08,321 - INFO - train_step=42600 loss=6.109 time=7.584
+2024-11-08 04:54:16,458 - INFO - train_step=42800 loss=5.986 time=8.137
+2024-11-08 04:54:23,859 - INFO - train_step=43000 loss=6.103 time=7.401
+2024-11-08 04:54:31,289 - INFO - train_step=43000 avg_return=-14.180
+2024-11-08 04:54:38,863 - INFO - train_step=43200 loss=6.013 time=15.004
+2024-11-08 04:54:46,352 - INFO - train_step=43400 loss=6.039 time=7.488
+2024-11-08 04:54:54,037 - INFO - train_step=43600 loss=6.015 time=7.685
+2024-11-08 04:55:02,196 - INFO - train_step=43800 loss=6.047 time=8.158
+2024-11-08 04:55:09,692 - INFO - train_step=44000 loss=6.050 time=7.497
+2024-11-08 04:55:17,445 - INFO - train_step=44000 avg_return=-14.029
+2024-11-08 04:55:25,007 - INFO - train_step=44200 loss=6.154 time=15.315
+2024-11-08 04:55:32,508 - INFO - train_step=44400 loss=6.029 time=7.501
+2024-11-08 04:55:40,105 - INFO - train_step=44600 loss=6.012 time=7.597
+2024-11-08 04:55:48,083 - INFO - train_step=44800 loss=5.949 time=7.978
+2024-11-08 04:55:55,244 - INFO - train_step=45000 loss=5.947 time=7.160
+2024-11-08 04:56:02,697 - INFO - train_step=45000 avg_return=-14.123
+2024-11-08 04:56:10,135 - INFO - train_step=45200 loss=6.098 time=14.891
+2024-11-08 04:56:17,638 - INFO - train_step=45400 loss=5.959 time=7.503
+2024-11-08 04:56:25,135 - INFO - train_step=45600 loss=6.071 time=7.498
+2024-11-08 04:56:33,329 - INFO - train_step=45800 loss=5.990 time=8.194
+2024-11-08 04:56:40,729 - INFO - train_step=46000 loss=6.023 time=7.400
+2024-11-08 04:56:48,554 - INFO - train_step=46000 avg_return=-14.465
+2024-11-08 04:56:56,187 - INFO - train_step=46200 loss=5.951 time=15.458
+2024-11-08 04:57:03,642 - INFO - train_step=46400 loss=5.969 time=7.455
+2024-11-08 04:57:11,201 - INFO - train_step=46600 loss=5.871 time=7.559
+2024-11-08 04:57:19,131 - INFO - train_step=46800 loss=5.906 time=7.931
+2024-11-08 04:57:26,240 - INFO - train_step=47000 loss=6.090 time=7.109
+2024-11-08 04:57:34,138 - INFO - train_step=47000 avg_return=-15.819
+2024-11-08 04:57:41,784 - INFO - train_step=47200 loss=6.029 time=15.543
+2024-11-08 04:57:49,114 - INFO - train_step=47400 loss=5.914 time=7.331
+2024-11-08 04:57:56,689 - INFO - train_step=47600 loss=6.005 time=7.574
+2024-11-08 04:58:04,762 - INFO - train_step=47800 loss=6.032 time=8.074
+2024-11-08 04:58:11,856 - INFO - train_step=48000 loss=5.949 time=7.094
+2024-11-08 04:58:19,720 - INFO - train_step=48000 avg_return=-22.581
+2024-11-08 04:58:27,172 - INFO - train_step=48200 loss=6.011 time=15.316
+2024-11-08 04:58:34,545 - INFO - train_step=48400 loss=6.075 time=7.373
+2024-11-08 04:58:42,006 - INFO - train_step=48600 loss=6.100 time=7.461
+2024-11-08 04:58:50,075 - INFO - train_step=48800 loss=6.002 time=8.070
+2024-11-08 04:58:57,131 - INFO - train_step=49000 loss=5.982 time=7.056
+2024-11-08 04:59:04,934 - INFO - train_step=49000 avg_return=-17.900
+2024-11-08 04:59:12,408 - INFO - train_step=49200 loss=6.058 time=15.277
+2024-11-08 04:59:19,926 - INFO - train_step=49400 loss=6.018 time=7.518
+2024-11-08 04:59:27,387 - INFO - train_step=49600 loss=5.934 time=7.460
+2024-11-08 04:59:35,350 - INFO - train_step=49800 loss=6.023 time=7.963
+2024-11-08 04:59:42,500 - INFO - train_step=50000 loss=6.032 time=7.151
+2024-11-08 04:59:49,291 - INFO - train_step=50000 avg_return=-12.878
+2024-11-08 04:59:49,291 - INFO - total_time=2278.539
+2024-11-08 04:59:49,291 - INFO - saving, checkpointPath_toSave=./result/Reacher-v2_discrete_CDQN_multiagent_1108_042117/model
+2024-11-08 04:59:49,292 - INFO - Checkpoint available: ./result/Reacher-v2_discrete_CDQN_multiagent_1108_042117/model/0/ckpt-50000
+2024-11-08 04:59:49,370 - INFO - Saved checkpoint: ./result/Reacher-v2_discrete_CDQN_multiagent_1108_042117/model/0/ckpt-50000
+2024-11-08 04:59:49,371 - INFO - Checkpoint available: ./result/Reacher-v2_discrete_CDQN_multiagent_1108_042117/model/1/ckpt-50000
+2024-11-08 04:59:49,407 - INFO - Saved checkpoint: ./result/Reacher-v2_discrete_CDQN_multiagent_1108_042117/model/1/ckpt-50000
