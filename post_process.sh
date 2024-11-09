@@ -1,23 +1,32 @@
 #!/bin/bash
 
-python3 get_avg_return.py 5 o_DaisoSokcho_SAC
+# python3 get_avg_returns.py 5 o_Reacher-v2_SAC
+# python3 plot_csv.py o_Reacher-v2_SAC
+
+# python3 get_avg_returns.py 5 o_Reacher-v2_discrete_CDQN_multiagent_num_actions_3
+# python3 plot_csv.py o_Reacher-v2_discrete_CDQN_multiagent_num_actions_3
+
+# python3 get_avg_returns.py 5 o_Reacher-v2_discrete_DQN_multiagent_num_actions_3
+# python3 plot_csv.py o_Reacher-v2_discrete_DQN_multiagent_num_actions_3
+
+python3 get_avg_returns.py 5 o_DaisoSokcho_SAC
 python3 plot_csv.py o_DaisoSokcho_SAC
 
-python3 get_avg_return.py 5 o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_3
+python3 get_avg_returns.py 5 o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_3
 python3 plot_csv.py o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_3
 
-python3 get_avg_return.py 5 o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_5
+python3 get_avg_returns.py 5 o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_5
 python3 plot_csv.py o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_5
 
-python3 get_avg_return.py 5 o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_7
+python3 get_avg_returns.py 5 o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_7
 python3 plot_csv.py o_DaisoSokcho_discrete_CDQN_multiagent_num_actions_7
 
-python3 get_avg_return.py 5 o_DaisoSokcho_discrete_DQN_multiagent_num_actions_3
+python3 get_avg_returns.py 5 o_DaisoSokcho_discrete_DQN_multiagent_num_actions_3
 python3 plot_csv.py o_DaisoSokcho_discrete_DQN_multiagent_num_actions_3
 
-python3 get_avg_return.py 5 o_DaisoSokcho_discrete_DQN_multiagent_num_actions_5
+python3 get_avg_returns.py 5 o_DaisoSokcho_discrete_DQN_multiagent_num_actions_5
 python3 plot_csv.py o_DaisoSokcho_discrete_DQN_multiagent_num_actions_5
 
-python3 get_avg_return.py 5 o_DaisoSokcho_discrete_DQN_multiagent_num_actions_7
-python3 plot_csv.py o_DaisoSokcho_discrete_DQN_multiagent_num_actions_7
+# python3 get_avg_returns.py 5 o_DaisoSokcho_discrete_DQN_multiagent_num_actions_7
+# python3 plot_csv.py o_DaisoSokcho_discrete_DQN_multiagent_num_actions_7
 
