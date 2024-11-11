@@ -43,7 +43,7 @@ from tf_agents.utils import common, tensor_normalizer
 from tf_agents.train.utils import spec_utils, train_utils
 from tf_agents.system import system_multiprocessing as multiprocessing
 
-from env_daiso.env_for_tfa import DaisoSokcho
+# from env_daiso.env_for_tfa import DaisoSokcho
 from game import Game, compute_avg_return
 from game_multiagent import MultiAgentGame, multiagent_compute_avg_return, collect_trajectory
 
@@ -114,16 +114,16 @@ def get_env(config, envName, envWrapper, num_actions_discretized):
     elif envName in ['MinitaurBulletEnv-v0']:
         py_train_env = suite_pybullet.load(envName)
         py_eval_env = suite_pybullet.load(envName)
-    elif envName in ['DaisoSokcho']:
-        py_train_env = DaisoSokcho()
-        py_eval_env = DaisoSokcho()
+#     elif envName in ['DaisoSokcho']:
+#         py_train_env = DaisoSokcho()
+#         py_eval_env = DaisoSokcho()
     elif envName in ['Pendulum-v1_discrete','Reacher-v2_discrete']:
         eName = envName.split('_discrete')[0]
         py_train_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions_discretized)
         py_eval_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions_discretized)
-    elif envName in ['DaisoSokcho_discrete']:
-        py_train_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
-        py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
+#     elif envName in ['DaisoSokcho_discrete']:
+#         py_train_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
+#         py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
     else:
         sys.exit(f"environment {envName} is not supported.")
 
@@ -363,8 +363,7 @@ def get_replay_buffer(config, logger, tf_train_env, agent_collect_data_spec):
     return replay_buffer, iterator, observers
 
 
-def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers):
-    num_init_collect_steps = config['num_init_collect_steps']
+def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps):
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
     num_init_collect_episodes = config['num_init_collect_episodes']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
@@ -395,9 +394,7 @@ def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, obs
             init_driver.run()
 
 
-def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer):
-    num_init_collect_steps = config['num_init_collect_steps']
-
+def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps):
     tf_train_env.reset()
     if 'multiagent' in agentName:
         # Collect random policy steps and save to the replay buffer.
@@ -406,7 +403,6 @@ def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, 
 
 
 def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observers):
-    num_init_collect_steps = config['num_init_collect_steps']
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
 
@@ -509,7 +505,8 @@ if __name__ == "__main__":
     print(f"online arguments={sys.argv}", flush=True)
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, 
-            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete'])
+#            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete'])
+        choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], help="environment wrapper")
     parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
@@ -517,6 +514,7 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path, which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
+    parser.add_argument('-i', '--num_init_collect_steps', type=int, help="number of initial collect steps")
     args = parser.parse_args()
     args = parser.parse_args()
 
@@ -528,6 +526,7 @@ if __name__ == "__main__":
     checkpointPath = args.checkpoint_path
     reverb_checkpointPath = args.reverb_checkpoint_path
     num_actions = config["num_actions_discretized"] if args.environment is None else args.num_actions
+    num_init_collect_steps = config['num_init_collect_steps'] if args.num_init_collect_steps is None else args.num_init_collect_steps
 
     date_time = datetime.now().strftime('%m%d_%H%M%S')
     resultPath = f"{config['resultPath']}/{envName}_{agentName}_{date_time}"
@@ -563,7 +562,7 @@ if __name__ == "__main__":
         logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         if checkpointPath is None:
-            fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer)
+            fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps)
             logger.info(f"after filling with random_policies, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         else:
             restore_agent_and_replay_buffer_for_multiagent(checkpointPath, reverb_checkpointPath, agent, replay_buffer)
@@ -580,7 +579,7 @@ if __name__ == "__main__":
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
         if checkpointPath is None:
-            fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers)
+            fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps)
             logger.info(f"after filling with random_policy, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         else:
             restore_agent_and_replay_buffer(checkpointPath, reverb_checkpointPath, agent, replay_buffer)

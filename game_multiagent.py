@@ -5,7 +5,7 @@ game with tf-agents
 import os
 import time
 import numpy as np
-import reverb
+# import reverb
 import tensorflow as tf
 from tf_agents.utils import common
 from tf_agents.trajectories import Trajectory, from_transition, PolicyStep

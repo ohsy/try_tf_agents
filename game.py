@@ -3,7 +3,7 @@ game with tf-agents
 """
 
 import time
-import reverb
+# import reverb
 import tensorflow as tf
 from tf_agents.utils import common
 
