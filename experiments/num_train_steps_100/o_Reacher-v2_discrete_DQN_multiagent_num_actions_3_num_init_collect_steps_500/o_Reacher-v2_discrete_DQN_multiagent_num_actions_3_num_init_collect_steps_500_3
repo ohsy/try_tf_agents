@@ -1,0 +1,212 @@
+2024-11-11 17:54:19.849137: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+/Users/yoh/tf_venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+online arguments=['play_mini.py', '-e', 'Reacher-v2_discrete', '-a', 'DQN_multiagent', '-n', '3', '-i', '500']
+2024-11-11 17:54:25,766 - INFO - config={'dtype': 'float32', 'intdtype': 'int32', 'resultPath': './result', 'isGPUUsed': False, 'log_level_name': 'INFO', '# log_level_name': 'like INFO or DEBUG', 'environment': 'CartPole-v0', 'environment_wrapper': None, 'agent': 'DQN', 'replay_buffer': 'tf_uniform', 'driver': 'dynamic_step', 'num_actions_discretized': 3, '# num_actions_discretized: for ActionDiscretizeWrapper': None, 'num_train_steps': 100, '# num_train_steps_to_log': 200, '# num_train_steps_to_eval': 1000, '# num_train_steps_to_save_model': 10000, 'num_episodes_to_eval': 10, '# for CDQN': None, 'num_atoms': 51, 'min_q_value': -20, 'max_q_value': 20, 'n_step_update': 2, 'qnet_fc_layer_params': [128, 64], 'actor_fc_layer_params': [256, 256], '# actor_fc_layer_params': '[32, 32] for Pendulum', 'critic_observation_fc_layer_params': None, '#critic_observation_fc_layer_params': [64, 64], '# critic_observation_fc_layer_params': '[32, 32] for Pendulum', 'critic_action_fc_layer_params': None, '#critic_action_fc_layer_params': [64, 64], '# critic_action_fc_layer_params': '[32, 32] for Pendulum', 'critic_joint_fc_layer_params': [256, 256], '# critic_joint_fc_layer_params': '[128, 16] for Pendulum', 'value_fc_layer_params': [256, 256], 'batch_size': 64, 'learning_rate': 0.001, 'actor_learning_rate': 0.0003, 'critic_learning_rate': 0.0006, 'alpha_learning_rate': 0.0003, 'target_update_tau': 0.005, 'target_update_period': 1, 'gamma': 0.99, 'reward_scale_factor': 1.0, 'replay_buffer_max_length': 10000, '# num_frames = capacity = max_length * env.batch_size and default env.batch_size = 1': None, 'num_init_collect_steps': 10000, 'num_collect_steps_per_train_step': 1, 'num_init_collect_episodes': 10, 'num_collect_episodes_per_train_step': 30, '# for PPO': None, 'num_parallel_envs': 30, 'num_env_steps': 20000, 'num_epochs': 25, 'reverb_port': 8008, '#  ending': None}
+2024-11-11 17:54:25,767 - INFO - args=Namespace(environment='Reacher-v2_discrete', environment_wrapper=None, agent='DQN_multiagent', replay_buffer=None, driver=None, checkpoint_path=None, reverb_checkpoint_path=None, num_actions=3, num_init_collect_steps=500)
+2024-11-11 17:54:25,767 - INFO - environment=Reacher-v2_discrete
+2024-11-11 17:54:25,767 - INFO - envWrapper=None
+2024-11-11 17:54:25,768 - INFO - agent=DQN_multiagent
+objc[15733]: Class GLFWApplicationDelegate is implemented in both /Users/yoh/.mujoco/mujoco210/bin/libglfw.3.dylib (0x133f9d778) and /Users/yoh/tf_venv/lib/python3.9/site-packages/glfw/libglfw.3.dylib (0x1385f77e8). One of the two will be used. Which one is undefined.
+objc[15733]: Class GLFWWindowDelegate is implemented in both /Users/yoh/.mujoco/mujoco210/bin/libglfw.3.dylib (0x133f9d700) and /Users/yoh/tf_venv/lib/python3.9/site-packages/glfw/libglfw.3.dylib (0x1385f7810). One of the two will be used. Which one is undefined.
+objc[15733]: Class GLFWContentView is implemented in both /Users/yoh/.mujoco/mujoco210/bin/libglfw.3.dylib (0x133f9d7a0) and /Users/yoh/tf_venv/lib/python3.9/site-packages/glfw/libglfw.3.dylib (0x1385f7860). One of the two will be used. Which one is undefined.
+objc[15733]: Class GLFWWindow is implemented in both /Users/yoh/.mujoco/mujoco210/bin/libglfw.3.dylib (0x133f9d818) and /Users/yoh/tf_venv/lib/python3.9/site-packages/glfw/libglfw.3.dylib (0x1385f78d8). One of the two will be used. Which one is undefined.
+2024-11-11 17:54:26,197 - INFO - tf_observation_spec: BoundedTensorSpec(shape=(11,), dtype=tf.float64, name='observation', minimum=array(-1.797693e+308), maximum=array(1.797693e+308))
+2024-11-11 17:54:26,197 - INFO - tf_action_spec: BoundedTensorSpec(shape=(2,), dtype=tf.int32, name='action', minimum=array(0, dtype=int32), maximum=array(2, dtype=int32))
+2024-11-11 17:54:26,199 - INFO - tf_time_step_spec: TimeStep(
+{'step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type'),
+ 'reward': TensorSpec(shape=(), dtype=tf.float32, name='reward'),
+ 'discount': BoundedTensorSpec(shape=(), dtype=tf.float32, name='discount', minimum=array(0., dtype=float32), maximum=array(1., dtype=float32)),
+ 'observation': BoundedTensorSpec(shape=(11,), dtype=tf.float64, name='observation', minimum=array(-1.797693e+308), maximum=array(1.797693e+308))})
+2024-11-11 17:54:26,647 - INFO - tf_agent_collect_data_spec: Trajectory(
+{'step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type'),
+ 'observation': BoundedTensorSpec(shape=(11,), dtype=tf.float64, name='observation', minimum=array(-1.797693e+308), maximum=array(1.797693e+308)),
+ 'action': BoundedTensorSpec(shape=(2,), dtype=tf.int32, name='action', minimum=array(0, dtype=int32), maximum=array(2, dtype=int32)),
+ 'policy_info': (),
+ 'next_step_type': TensorSpec(shape=(), dtype=tf.int32, name='step_type'),
+ 'reward': TensorSpec(shape=(), dtype=tf.float32, name='reward'),
+ 'discount': BoundedTensorSpec(shape=(), dtype=tf.float32, name='discount', minimum=array(0., dtype=float32), maximum=array(1., dtype=float32))})
+WARNING:tensorflow:From /Users/yoh/tf_venv/lib/python3.9/site-packages/tensorflow/python/autograph/impl/api.py:377: ReplayBuffer.get_next (from tf_agents.replay_buffers.replay_buffer) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `as_dataset(..., single_deterministic_pass=False) instead.
+2024-11-11 17:54:26,952 - WARNING - From /Users/yoh/tf_venv/lib/python3.9/site-packages/tensorflow/python/autograph/impl/api.py:377: ReplayBuffer.get_next (from tf_agents.replay_buffers.replay_buffer) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `as_dataset(..., single_deterministic_pass=False) instead.
+2024-11-11 17:54:31,929 - INFO - random_policy avg_return=-73.92668151855469
+2024-11-11 17:54:31,930 - INFO - replay_buffer.capacity=10000
+2024-11-11 17:54:31,941 - INFO - before filling or restoring with checkpointer, replay_buffer.num_frames()=0
+2024-11-11 17:54:36,834 - INFO - after filling with random_policies, replay_buffer.num_frames()=500
+2024-11-11 17:54:50,034 - INFO - before training, avg_return=-105.49726867675781
+WARNING:tensorflow:From /Users/yoh/tf_venv/lib/python3.9/site-packages/tensorflow/python/util/dispatch.py:1260: calling foldr_v2 (from tensorflow.python.ops.functional_ops) with back_prop=False is deprecated and will be removed in a future version.
+Instructions for updating:
+back_prop=False is deprecated. Consider using tf.stop_gradient instead.
+Instead of:
+results = tf.foldr(fn, elems, back_prop=False)
+Use:
+results = tf.nest.map_structure(tf.stop_gradient, tf.foldr(fn, elems))
+2024-11-11 17:54:50,155 - WARNING - From /Users/yoh/tf_venv/lib/python3.9/site-packages/tensorflow/python/util/dispatch.py:1260: calling foldr_v2 (from tensorflow.python.ops.functional_ops) with back_prop=False is deprecated and will be removed in a future version.
+Instructions for updating:
+back_prop=False is deprecated. Consider using tf.stop_gradient instead.
+Instead of:
+results = tf.foldr(fn, elems, back_prop=False)
+Use:
+results = tf.nest.map_structure(tf.stop_gradient, tf.foldr(fn, elems))
+2024-11-11 17:55:16,977 - INFO - train_step=1 loss=2.480 time=26.941
+2024-11-11 17:55:17,076 - INFO - train_step=2 loss=2.996 time=0.100
+2024-11-11 17:55:30,532 - INFO - train_step=2 avg_return=-12.887
+2024-11-11 17:55:30,586 - INFO - train_step=3 loss=3.212 time=13.509
+2024-11-11 17:55:30,626 - INFO - train_step=4 loss=2.767 time=0.041
+2024-11-11 17:55:43,750 - INFO - train_step=4 avg_return=-12.001
+2024-11-11 17:55:43,807 - INFO - train_step=5 loss=2.936 time=13.181
+2024-11-11 17:55:43,849 - INFO - train_step=6 loss=3.066 time=0.041
+2024-11-11 17:55:56,983 - INFO - train_step=6 avg_return=-11.331
+2024-11-11 17:55:57,037 - INFO - train_step=7 loss=3.276 time=13.189
+2024-11-11 17:55:57,089 - INFO - train_step=8 loss=3.079 time=0.052
+2024-11-11 17:56:09,873 - INFO - train_step=8 avg_return=-14.849
+2024-11-11 17:56:09,921 - INFO - train_step=9 loss=2.935 time=12.832
+2024-11-11 17:56:09,967 - INFO - train_step=10 loss=3.014 time=0.046
+2024-11-11 17:56:22,904 - INFO - train_step=10 avg_return=-11.899
+2024-11-11 17:56:22,958 - INFO - train_step=11 loss=2.840 time=12.991
+2024-11-11 17:56:23,004 - INFO - train_step=12 loss=2.325 time=0.047
+2024-11-11 17:56:36,126 - INFO - train_step=12 avg_return=-12.045
+2024-11-11 17:56:36,178 - INFO - train_step=13 loss=3.373 time=13.173
+2024-11-11 17:56:36,224 - INFO - train_step=14 loss=3.656 time=0.047
+2024-11-11 17:56:49,769 - INFO - train_step=14 avg_return=-8.846
+2024-11-11 17:56:49,818 - INFO - train_step=15 loss=4.160 time=13.594
+2024-11-11 17:56:49,865 - INFO - train_step=16 loss=4.539 time=0.047
+2024-11-11 17:57:03,457 - INFO - train_step=16 avg_return=-10.198
+2024-11-11 17:57:03,503 - INFO - train_step=17 loss=2.529 time=13.638
+2024-11-11 17:57:03,554 - INFO - train_step=18 loss=4.997 time=0.051
+2024-11-11 17:57:17,007 - INFO - train_step=18 avg_return=-11.380
+2024-11-11 17:57:17,065 - INFO - train_step=19 loss=4.156 time=13.512
+2024-11-11 17:57:17,104 - INFO - train_step=20 loss=6.007 time=0.039
+2024-11-11 17:57:29,808 - INFO - train_step=20 avg_return=-11.899
+2024-11-11 17:57:29,859 - INFO - train_step=21 loss=7.719 time=12.755
+2024-11-11 17:57:29,904 - INFO - train_step=22 loss=6.988 time=0.045
+2024-11-11 17:57:42,969 - INFO - train_step=22 avg_return=-13.966
+2024-11-11 17:57:43,020 - INFO - train_step=23 loss=6.632 time=13.116
+2024-11-11 17:57:43,065 - INFO - train_step=24 loss=12.578 time=0.045
+2024-11-11 17:57:56,177 - INFO - train_step=24 avg_return=-13.129
+2024-11-11 17:57:56,227 - INFO - train_step=25 loss=13.329 time=13.163
+2024-11-11 17:57:56,289 - INFO - train_step=26 loss=11.175 time=0.061
+2024-11-11 17:58:09,331 - INFO - train_step=26 avg_return=-12.071
+2024-11-11 17:58:09,377 - INFO - train_step=27 loss=7.418 time=13.088
+2024-11-11 17:58:09,417 - INFO - train_step=28 loss=9.131 time=0.040
+2024-11-11 17:58:22,828 - INFO - train_step=28 avg_return=-11.280
+2024-11-11 17:58:22,923 - INFO - train_step=29 loss=18.484 time=13.507
+2024-11-11 17:58:22,978 - INFO - train_step=30 loss=14.424 time=0.054
+2024-11-11 17:58:36,696 - INFO - train_step=30 avg_return=-13.614
+2024-11-11 17:58:36,748 - INFO - train_step=31 loss=14.908 time=13.770
+2024-11-11 17:58:36,793 - INFO - train_step=32 loss=19.946 time=0.045
+2024-11-11 17:58:49,893 - INFO - train_step=32 avg_return=-10.999
+2024-11-11 17:58:49,939 - INFO - train_step=33 loss=15.180 time=13.146
+2024-11-11 17:58:49,995 - INFO - train_step=34 loss=7.978 time=0.057
+2024-11-11 17:59:02,846 - INFO - train_step=34 avg_return=-15.051
+2024-11-11 17:59:02,894 - INFO - train_step=35 loss=16.999 time=12.899
+2024-11-11 17:59:02,946 - INFO - train_step=36 loss=14.222 time=0.052
+2024-11-11 17:59:15,963 - INFO - train_step=36 avg_return=-12.143
+2024-11-11 17:59:16,021 - INFO - train_step=37 loss=12.579 time=13.076
+2024-11-11 17:59:16,078 - INFO - train_step=38 loss=10.178 time=0.056
+2024-11-11 17:59:29,245 - INFO - train_step=38 avg_return=-9.978
+2024-11-11 17:59:29,312 - INFO - train_step=39 loss=19.327 time=13.234
+2024-11-11 17:59:29,353 - INFO - train_step=40 loss=7.413 time=0.041
+2024-11-11 17:59:42,897 - INFO - train_step=40 avg_return=-12.442
+2024-11-11 17:59:42,944 - INFO - train_step=41 loss=20.890 time=13.591
+2024-11-11 17:59:43,001 - INFO - train_step=42 loss=8.900 time=0.057
+2024-11-11 17:59:56,161 - INFO - train_step=42 avg_return=-9.785
+2024-11-11 17:59:56,211 - INFO - train_step=43 loss=10.568 time=13.210
+2024-11-11 17:59:56,255 - INFO - train_step=44 loss=12.366 time=0.044
+2024-11-11 18:00:09,302 - INFO - train_step=44 avg_return=-12.349
+2024-11-11 18:00:09,353 - INFO - train_step=45 loss=12.651 time=13.098
+2024-11-11 18:00:09,401 - INFO - train_step=46 loss=16.213 time=0.048
+2024-11-11 18:00:22,707 - INFO - train_step=46 avg_return=-12.746
+2024-11-11 18:00:22,754 - INFO - train_step=47 loss=10.945 time=13.353
+2024-11-11 18:00:22,804 - INFO - train_step=48 loss=14.195 time=0.051
+2024-11-11 18:00:35,854 - INFO - train_step=48 avg_return=-13.215
+2024-11-11 18:00:35,909 - INFO - train_step=49 loss=11.357 time=13.105
+2024-11-11 18:00:35,964 - INFO - train_step=50 loss=11.859 time=0.054
+2024-11-11 18:00:49,020 - INFO - train_step=50 avg_return=-11.900
+2024-11-11 18:00:49,066 - INFO - train_step=51 loss=12.733 time=13.102
+2024-11-11 18:00:49,113 - INFO - train_step=52 loss=11.757 time=0.047
+2024-11-11 18:01:02,417 - INFO - train_step=52 avg_return=-11.446
+2024-11-11 18:01:02,466 - INFO - train_step=53 loss=8.642 time=13.353
+2024-11-11 18:01:02,536 - INFO - train_step=54 loss=20.325 time=0.071
+2024-11-11 18:01:16,227 - INFO - train_step=54 avg_return=-13.669
+2024-11-11 18:01:16,274 - INFO - train_step=55 loss=8.101 time=13.738
+2024-11-11 18:01:16,313 - INFO - train_step=56 loss=8.110 time=0.039
+2024-11-11 18:01:29,382 - INFO - train_step=56 avg_return=-10.688
+2024-11-11 18:01:29,427 - INFO - train_step=57 loss=12.595 time=13.114
+2024-11-11 18:01:29,485 - INFO - train_step=58 loss=9.794 time=0.058
+2024-11-11 18:01:42,573 - INFO - train_step=58 avg_return=-13.350
+2024-11-11 18:01:42,624 - INFO - train_step=59 loss=7.177 time=13.139
+2024-11-11 18:01:42,668 - INFO - train_step=60 loss=12.983 time=0.044
+2024-11-11 18:01:55,929 - INFO - train_step=60 avg_return=-13.080
+2024-11-11 18:01:55,981 - INFO - train_step=61 loss=8.636 time=13.313
+2024-11-11 18:01:56,033 - INFO - train_step=62 loss=19.832 time=0.052
+2024-11-11 18:02:09,444 - INFO - train_step=62 avg_return=-12.174
+2024-11-11 18:02:09,488 - INFO - train_step=63 loss=11.700 time=13.455
+2024-11-11 18:02:09,540 - INFO - train_step=64 loss=7.442 time=0.051
+2024-11-11 18:02:22,597 - INFO - train_step=64 avg_return=-9.805
+2024-11-11 18:02:22,648 - INFO - train_step=65 loss=11.964 time=13.109
+2024-11-11 18:02:22,694 - INFO - train_step=66 loss=10.055 time=0.046
+2024-11-11 18:02:35,765 - INFO - train_step=66 avg_return=-9.698
+2024-11-11 18:02:35,815 - INFO - train_step=67 loss=10.060 time=13.122
+2024-11-11 18:02:35,860 - INFO - train_step=68 loss=8.102 time=0.044
+2024-11-11 18:02:48,906 - INFO - train_step=68 avg_return=-10.160
+2024-11-11 18:02:48,956 - INFO - train_step=69 loss=6.197 time=13.096
+2024-11-11 18:02:49,006 - INFO - train_step=70 loss=7.235 time=0.050
+2024-11-11 18:03:02,089 - INFO - train_step=70 avg_return=-13.589
+2024-11-11 18:03:02,139 - INFO - train_step=71 loss=7.419 time=13.133
+2024-11-11 18:03:02,195 - INFO - train_step=72 loss=13.302 time=0.056
+2024-11-11 18:03:15,660 - INFO - train_step=72 avg_return=-10.218
+2024-11-11 18:03:15,715 - INFO - train_step=73 loss=10.571 time=13.520
+2024-11-11 18:03:15,770 - INFO - train_step=74 loss=9.156 time=0.056
+2024-11-11 18:03:28,788 - INFO - train_step=74 avg_return=-13.990
+2024-11-11 18:03:28,834 - INFO - train_step=75 loss=5.475 time=13.063
+2024-11-11 18:03:28,896 - INFO - train_step=76 loss=6.443 time=0.062
+2024-11-11 18:03:41,953 - INFO - train_step=76 avg_return=-12.442
+2024-11-11 18:03:42,004 - INFO - train_step=77 loss=9.378 time=13.108
+2024-11-11 18:03:42,053 - INFO - train_step=78 loss=11.113 time=0.050
+2024-11-11 18:03:55,151 - INFO - train_step=78 avg_return=-12.853
+2024-11-11 18:03:55,208 - INFO - train_step=79 loss=7.999 time=13.154
+2024-11-11 18:03:55,255 - INFO - train_step=80 loss=11.031 time=0.047
+2024-11-11 18:04:08,299 - INFO - train_step=80 avg_return=-9.545
+2024-11-11 18:04:08,354 - INFO - train_step=81 loss=9.836 time=13.098
+2024-11-11 18:04:08,400 - INFO - train_step=82 loss=11.892 time=0.046
+2024-11-11 18:04:21,551 - INFO - train_step=82 avg_return=-12.228
+2024-11-11 18:04:21,604 - INFO - train_step=83 loss=6.808 time=13.204
+2024-11-11 18:04:21,651 - INFO - train_step=84 loss=5.671 time=0.047
+2024-11-11 18:04:34,688 - INFO - train_step=84 avg_return=-13.161
+2024-11-11 18:04:34,738 - INFO - train_step=85 loss=9.653 time=13.087
+2024-11-11 18:04:34,786 - INFO - train_step=86 loss=9.383 time=0.048
+2024-11-11 18:04:48,024 - INFO - train_step=86 avg_return=-9.931
+2024-11-11 18:04:48,071 - INFO - train_step=87 loss=12.169 time=13.285
+2024-11-11 18:04:48,123 - INFO - train_step=88 loss=6.599 time=0.052
+2024-11-11 18:05:02,436 - INFO - train_step=88 avg_return=-11.204
+2024-11-11 18:05:02,495 - INFO - train_step=89 loss=6.156 time=14.372
+2024-11-11 18:05:02,535 - INFO - train_step=90 loss=9.261 time=0.040
+2024-11-11 18:05:15,961 - INFO - train_step=90 avg_return=-10.851
+2024-11-11 18:05:16,012 - INFO - train_step=91 loss=8.749 time=13.477
+2024-11-11 18:05:16,057 - INFO - train_step=92 loss=7.152 time=0.045
+2024-11-11 18:05:30,054 - INFO - train_step=92 avg_return=-12.415
+2024-11-11 18:05:30,103 - INFO - train_step=93 loss=13.205 time=14.046
+2024-11-11 18:05:30,156 - INFO - train_step=94 loss=10.913 time=0.053
+2024-11-11 18:05:43,448 - INFO - train_step=94 avg_return=-11.556
+2024-11-11 18:05:43,504 - INFO - train_step=95 loss=7.053 time=13.348
+2024-11-11 18:05:43,547 - INFO - train_step=96 loss=5.547 time=0.043
+2024-11-11 18:05:57,017 - INFO - train_step=96 avg_return=-12.278
+2024-11-11 18:05:57,064 - INFO - train_step=97 loss=16.064 time=13.517
+2024-11-11 18:05:57,110 - INFO - train_step=98 loss=12.286 time=0.046
+2024-11-11 18:06:10,569 - INFO - train_step=98 avg_return=-10.514
+2024-11-11 18:06:10,623 - INFO - train_step=99 loss=6.439 time=13.513
+2024-11-11 18:06:10,675 - INFO - train_step=100 loss=9.520 time=0.052
+2024-11-11 18:06:24,936 - INFO - train_step=100 avg_return=-12.854
+2024-11-11 18:06:24,937 - INFO - total_time=708.103
+2024-11-11 18:06:24,937 - INFO - saving, checkpointPath_toSave=./result/Reacher-v2_discrete_DQN_multiagent_1111_175425/model
+2024-11-11 18:06:24,951 - INFO - No checkpoint available at ./result/Reacher-v2_discrete_DQN_multiagent_1111_175425/model/0
+2024-11-11 18:06:25,207 - INFO - Sharding callback duration: 37
+2024-11-11 18:06:25,235 - INFO - Saved checkpoint: ./result/Reacher-v2_discrete_DQN_multiagent_1111_175425/model/0/ckpt-100
+2024-11-11 18:06:25,237 - INFO - No checkpoint available at ./result/Reacher-v2_discrete_DQN_multiagent_1111_175425/model/1
+2024-11-11 18:06:25,262 - INFO - Sharding callback duration: 27
+2024-11-11 18:06:25,275 - INFO - Saved checkpoint: ./result/Reacher-v2_discrete_DQN_multiagent_1111_175425/model/1/ckpt-100
