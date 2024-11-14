@@ -521,7 +521,6 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--num_init_collect_steps', type=int, help="number of initial collect steps")
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     args = parser.parse_args()
-    args = parser.parse_args()
 
     envName = config["environment"] if args.environment is None else args.environment
     envWrapper = config["environment_wrapper"] if args.environment_wrapper is None else args.environment_wrapper

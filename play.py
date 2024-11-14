@@ -137,7 +137,7 @@ def get_env(config, envName, envWrapper, num_actions_discretized):
     return py_train_env, py_eval_env, tf_train_env, tf_eval_env
 
 
-def get_agent(config, tf_observation_spec, tf_action_spec):
+def get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy):
     qnet_fc_layer_params = config['qnet_fc_layer_params']
     actor_fc_layer_params = config['actor_fc_layer_params']
     critic_observation_fc_layer_params = config['critic_observation_fc_layer_params']
@@ -169,6 +169,7 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
             tf_action_spec,
             q_network=q_net,
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+            epsilon_greedy=epsilon_greedy,
             td_errors_loss_fn=common.element_wise_squared_loss,
             debug_summaries=True,
             summarize_grads_and_vars=True,
@@ -185,6 +186,7 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
             tf_action_spec,
             categorical_q_network=categorical_q_net,
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+            epsilon_greedy=epsilon_greedy,
             min_q_value=min_q_value,
             max_q_value=max_q_value,
             n_step_update=n_step_update,
@@ -230,7 +232,7 @@ def get_agent(config, tf_observation_spec, tf_action_spec):
     return agent
 
 
-def get_agents(config, tf_observation_spec, merged_tf_action_spec):
+def get_agents(config, tf_observation_spec, merged_tf_action_spec, epsilon_greedy):
     qnet_fc_layer_params = config['qnet_fc_layer_params']
     learning_rate = config['learning_rate']
     gamma = config['gamma']
@@ -271,6 +273,7 @@ def get_agents(config, tf_observation_spec, merged_tf_action_spec):
                     tf_action_spec,
                     q_network=q_nets[ix],
                     optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                    epsilon_greedy=epsilon_greedy,
                     td_errors_loss_fn=common.element_wise_squared_loss,
                     debug_summaries=True,
                     summarize_grads_and_vars=True,
@@ -290,6 +293,7 @@ def get_agents(config, tf_observation_spec, merged_tf_action_spec):
                     tf_action_spec,
                     categorical_q_network=q_nets[ix],
                     optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                    epsilon_greedy=epsilon_greedy,
                     min_q_value=min_q_value,
                     max_q_value=max_q_value,
                     n_step_update=n_step_update,
@@ -363,8 +367,7 @@ def get_replay_buffer(config, logger, tf_train_env, agent_collect_data_spec):
     return replay_buffer, iterator, observers
 
 
-def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers):
-    num_init_collect_steps = config['num_init_collect_steps']
+def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps):
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
     num_init_collect_episodes = config['num_init_collect_episodes']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
@@ -395,9 +398,7 @@ def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, obs
             init_driver.run()
 
 
-def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer):
-    num_init_collect_steps = config['num_init_collect_steps']
-
+def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps):
     tf_train_env.reset()
     if 'multiagent' in agentName:
         # Collect random policy steps and save to the replay buffer.
@@ -406,7 +407,6 @@ def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, 
 
 
 def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observers):
-    num_init_collect_steps = config['num_init_collect_steps']
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
 
@@ -517,7 +517,8 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path, which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
-    args = parser.parse_args()
+    parser.add_argument('-i', '--num_init_collect_steps', type=int, help="number of initial collect steps")
+    parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     args = parser.parse_args()
 
     envName = config["environment"] if args.environment is None else args.environment
@@ -528,6 +529,8 @@ if __name__ == "__main__":
     checkpointPath = args.checkpoint_path
     reverb_checkpointPath = args.reverb_checkpoint_path
     num_actions = config["num_actions_discretized"] if args.environment is None else args.num_actions
+    num_init_collect_steps = config['num_init_collect_steps'] if args.num_init_collect_steps is None else args.num_init_collect_steps
+    epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
 
     date_time = datetime.now().strftime('%m%d_%H%M%S')
     resultPath = f"{config['resultPath']}/{envName}_{agentName}_{date_time}"
@@ -547,10 +550,10 @@ if __name__ == "__main__":
     tf_observation_spec, tf_action_spec, tf_time_step_spec = get_tf_env_specs(logger, tf_train_env, py_train_env)
 
     if 'multiagent' in agentName:
-        agents = get_agents(config, tf_observation_spec, tf_action_spec)  # list of agents 
+        agents = get_agents(config, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
         tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
     else: 
-        agent = get_agent(config, tf_observation_spec, tf_action_spec)  # one agent 
+        agent = get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy)  # one agent 
         tf_agent_collect_data_spec = agent.collect_data_spec 
     logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
@@ -563,7 +566,7 @@ if __name__ == "__main__":
         logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         if checkpointPath is None:
-            fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer)
+            fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps)
             logger.info(f"after filling with random_policies, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         else:
             restore_agent_and_replay_buffer_for_multiagent(checkpointPath, reverb_checkpointPath, agent, replay_buffer)
@@ -580,7 +583,7 @@ if __name__ == "__main__":
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
         if checkpointPath is None:
-            fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers)
+            fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps)
             logger.info(f"after filling with random_policy, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         else:
             restore_agent_and_replay_buffer(checkpointPath, reverb_checkpointPath, agent, replay_buffer)
