@@ -23,7 +23,8 @@ import tensorflow as tf
 
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.categorical_dqn import categorical_dqn_agent
-from tf_agents.agents.ddpg import critic_network
+from tf_agents.agents.ddpg import ddpg_agent, actor_network, critic_network
+from tf_agents.agents.td3 import td3_agent
 from tf_agents.agents.sac import sac_agent, tanh_normal_projection_network
 from tf_agents.environments import suite_gym, tf_py_environment, wrappers
 # from tf_agents.environments import suite_pybullet
@@ -34,6 +35,7 @@ from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics, py_metrics
 from tf_agents.policies import actor_policy, greedy_policy, py_tf_eager_policy, random_tf_policy
 from tf_agents.policies import policy_saver
+from tf_agents.policies import epsilon_greedy_policy
 # from tf_agents.replay_buffers import reverb_replay_buffer, reverb_utils, tf_uniform_replay_buffer
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import Trajectory
@@ -106,8 +108,7 @@ def get_tf_agent_specs_for_multiagent(agents, tf_action_spec):
     return tf_agent_collect_data_spec
 
 
-def get_env(config, envName, envWrapper, num_actions_discretized):
-
+def get_env(config, logger, envName, envWrapper, num_actions):
     if envName in ['CartPole-v0','Pendulum-v1','Reacher-v2']:
         py_train_env = suite_gym.load(envName)
         py_eval_env = suite_gym.load(envName)
@@ -119,11 +120,17 @@ def get_env(config, envName, envWrapper, num_actions_discretized):
         py_eval_env = DaisoSokcho()
     elif envName in ['Pendulum-v1_discrete','Reacher-v2_discrete']:
         eName = envName.split('_discrete')[0]
-        py_train_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions_discretized)
-        py_eval_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions_discretized)
-    elif envName in ['DaisoSokcho_discrete']:
-        py_train_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
-        py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=(6,8,6,6,6))
+        py_train_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions)
+        py_eval_env = wrappers.ActionDiscretizeWrapper(suite_gym.load(eName), num_actions=num_actions)
+    elif envName in ['DaisoSokcho_discrete']: 
+        py_train_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=num_actions)
+        py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=num_actions)
+    elif envName in ['DaisoSokcho_discrete_unit1']:
+        py_train_env = DaisoSokcho()
+        _num_actions = int(py_train_env.action_spec().maximum - py_train_env.action_spec().minimum) + 1
+        logger.info(f"in get_env(), for {envName}, num_actions={_num_actions}")
+        py_train_env = wrappers.ActionDiscretizeWrapper(py_train_env, num_actions=_num_actions)
+        py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=_num_actions)
     else:
         sys.exit(f"environment {envName} is not supported.")
 
@@ -196,20 +203,76 @@ def get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy):
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
 
-    elif agentName in ["SAC"]:
+    elif agentName in ["DDPG"]:
+        actor_net = actor_network.ActorNetwork(
+            tf_observation_spec, 
+            tf_action_spec,
+            fc_layer_params=actor_fc_layer_params)
         critic_net = critic_network.CriticNetwork(
             (tf_observation_spec, tf_action_spec),
-            observation_fc_layer_params=None,
-            action_fc_layer_params=None,
+            observation_fc_layer_params=critic_observation_fc_layer_params,
+            action_fc_layer_params=critic_action_fc_layer_params,
             joint_fc_layer_params=critic_joint_fc_layer_params,
             kernel_initializer='glorot_uniform',
             last_kernel_initializer='glorot_uniform')
+        agent = ddpg_agent.DdpgAgent(
+            tf_time_step_spec,
+            tf_action_spec,
+            actor_network=actor_net,
+            critic_network=critic_net,
+            actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
+            critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
+            target_update_tau=target_update_tau,
+            target_update_period=target_update_period,
+            td_errors_loss_fn=tf.math.squared_difference,
+            gamma=gamma,
+            reward_scale_factor=reward_scale_factor,
+            debug_summaries=True,
+            summarize_grads_and_vars=True,
+            train_step_counter=train_utils.create_train_step())
+
+    elif agentName in ["TD3"]:
+        actor_net = actor_network.ActorNetwork(
+            tf_observation_spec, 
+            tf_action_spec,
+            fc_layer_params=actor_fc_layer_params)
+        critic_net = critic_network.CriticNetwork(
+            (tf_observation_spec, tf_action_spec),
+            observation_fc_layer_params=critic_observation_fc_layer_params,
+            action_fc_layer_params=critic_action_fc_layer_params,
+            joint_fc_layer_params=critic_joint_fc_layer_params,
+            kernel_initializer='glorot_uniform',
+            last_kernel_initializer='glorot_uniform')
+        agent = td3_agent.Td3Agent(
+            tf_time_step_spec,
+            tf_action_spec,
+            actor_network=actor_net,
+            critic_network=critic_net,
+            actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
+            critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
+            target_update_tau=target_update_tau,
+            target_update_period=target_update_period,
+            td_errors_loss_fn=tf.math.squared_difference,
+            gamma=gamma,
+            reward_scale_factor=reward_scale_factor,
+            debug_summaries=True,
+            summarize_grads_and_vars=True,
+            train_step_counter=train_utils.create_train_step())
+
+    elif agentName in ["SAC"]:
         actor_net = actor_distribution_network.ActorDistributionNetwork(
             tf_observation_spec, 
             tf_action_spec,
             fc_layer_params=actor_fc_layer_params,
             continuous_projection_net=(
                 tanh_normal_projection_network.TanhNormalProjectionNetwork))
+        critic_net = critic_network.CriticNetwork(
+            (tf_observation_spec, tf_action_spec),
+            observation_fc_layer_params=critic_observation_fc_layer_params,
+            action_fc_layer_params=critic_action_fc_layer_params,
+            joint_fc_layer_params=critic_joint_fc_layer_params,
+            kernel_initializer='glorot_uniform',
+            last_kernel_initializer='glorot_uniform')
         agent = sac_agent.SacAgent(
             tf_time_step_spec,
             tf_action_spec,
@@ -509,9 +572,9 @@ if __name__ == "__main__":
     print(f"online arguments={sys.argv}", flush=True)
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, 
-            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete'])
+            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], help="environment wrapper")
-    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','SAC'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -528,7 +591,7 @@ if __name__ == "__main__":
     driverName = config["driver"] if args.driver is None else args.driver
     checkpointPath = args.checkpoint_path
     reverb_checkpointPath = args.reverb_checkpoint_path
-    num_actions = config["num_actions_discretized"] if args.environment is None else args.num_actions
+    num_actions = config['num_actions'] if args.num_actions is None else args.num_actions
     num_init_collect_steps = config['num_init_collect_steps'] if args.num_init_collect_steps is None else args.num_init_collect_steps
     epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
 
@@ -546,8 +609,14 @@ if __name__ == "__main__":
     logger.info(f"envWrapper={envWrapper}")  
     logger.info(f"agent={agentName}")
 
-    py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, envName, envWrapper, num_actions)
+    py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, logger, envName, envWrapper, num_actions)
     tf_observation_spec, tf_action_spec, tf_time_step_spec = get_tf_env_specs(logger, tf_train_env, py_train_env)
+
+    # epsilon decay cf. https://github.com/tensorflow/agents/blob/master/tf_agents/agents/categorical_dqn/examples/train_eval_atari.py
+    # global_step = tf.compat.v1.train.get_or_create_global_step()
+    # epsilon_greedy=0.01
+    # epsilon_decay_period=10000  # 1000000: period over which to decay epsilon, from 1.0 to epsilon_greedy
+    # epsilon = tf.compat.v1.train.polynomial_decay(1.0, global_step, epsilon_decay_period, end_learning_rate=epsilon_greedy)
 
     if 'multiagent' in agentName:
         agents = get_agents(config, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
