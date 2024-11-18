@@ -21,7 +21,12 @@ def main(file_prefix):
     plt.ylabel('Average Return')
     plt.grid()
     plt.xticks(rotation=45)
-    plt.ylim(-60,0)
+    if "DaisoSokcho" in file_prefix:
+        plt.ylim(-600,0)
+    elif "Reacher-v2" in file_prefix:
+        plt.ylim(-60,0)
+    else:
+        plt.ylim(-100,0)
 
     # Step 3: Save the plot to a file
     # You can specify the file format by changing the extension (e.g., .png, .jpg, .pdf)

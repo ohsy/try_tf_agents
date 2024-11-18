@@ -110,6 +110,7 @@ class MultiAgentGame:
         self.num_train_steps_to_save_model = (int) (self.num_train_steps / 5)
         self.num_episodes_to_eval = config['num_episodes_to_eval']
         self.num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
+        self.train_step = 0
 
     def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator):
 
@@ -118,7 +119,7 @@ class MultiAgentGame:
         # (Optional) Optimize by wrapping some of the code in a graph using TF function.
         for agent in agents: 
             agent.train = common.function(agent.train)
-            agent.train_step_counter.assign(tf.Variable(0, dtype=tf.int64))
+            agent.train_step_counter.assign(tf.Variable(self.train_step, dtype=tf.int64))  # sync to self.train_step
 
         # Evaluate the agent's policy once before training.
         avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
@@ -128,9 +129,10 @@ class MultiAgentGame:
         # time_step = py_train_env.reset()
         time_step = tf_train_env.reset()
         before = time.time()
-        for _ in range(self.num_train_steps):
+        for train_step in range(self.num_train_steps):
+            self.train_step = train_step  # for epsilon_decay
 
-            # Collect a few steps and save to the replay buffer.
+            # Collect a few steps and save in the replay buffer.
             for _ in range(self.num_collect_steps_per_train_step):
                 collect_trajectory(logger, tf_train_env, replay_buffer, agents=agents)
 
@@ -146,7 +148,7 @@ class MultiAgentGame:
                 loss_info = agent.train(trajectories[ix])
                 train_loss += loss_info.loss
 
-            train_step = agent.train_step_counter.numpy()
+            # train_step = agent.train_step_counter.numpy()
             if train_step % self.num_train_steps_to_log == 0:
                 after = time.time()
                 logger.info(f'train_step={train_step} loss={train_loss:.3f} time={after-before:.3f}')

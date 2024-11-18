@@ -127,7 +127,7 @@ def get_env(config, logger, envName, envWrapper, num_actions):
         py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=num_actions)
     elif envName in ['DaisoSokcho_discrete_unit1']:
         py_train_env = DaisoSokcho()
-        _num_actions = int(py_train_env.action_spec().maximum - py_train_env.action_spec().minimum) + 1
+        _num_actions = [int(n) for n in (py_train_env.action_spec().maximum - py_train_env.action_spec().minimum) + 1]
         logger.info(f"in get_env(), for {envName}, num_actions={_num_actions}")
         py_train_env = wrappers.ActionDiscretizeWrapper(py_train_env, num_actions=_num_actions)
         py_eval_env = wrappers.ActionDiscretizeWrapper(DaisoSokcho(), num_actions=_num_actions)
