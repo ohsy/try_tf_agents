@@ -26,7 +26,7 @@ def main(file_prefix):
     elif "Reacher-v2" in file_prefix:
         plt.ylim(-60,0)
     else:
-        plt.ylim(-100,0)
+        plt.ylim(-100,100)
 
     # Step 3: Save the plot to a file
     # You can specify the file format by changing the extension (e.g., .png, .jpg, .pdf)

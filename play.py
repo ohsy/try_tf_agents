@@ -608,6 +608,11 @@ if __name__ == "__main__":
     logger.info(f"environment={envName}")  
     logger.info(f"envWrapper={envWrapper}")  
     logger.info(f"agent={agentName}")
+    logger.info(f"replay_buffer={replay_bufferName}")
+    logger.info(f"driver={driverName}")
+    logger.info(f"num_actions={num_actions}")
+    logger.info(f"num_init_collect_steps={num_init_collect_steps}")
+    logger.info(f"epsilon_greedy={epsilon_greedy}")
 
     py_train_env, py_eval_env, tf_train_env, tf_eval_env = get_env(config, logger, envName, envWrapper, num_actions)
     tf_observation_spec, tf_action_spec, tf_time_step_spec = get_tf_env_specs(logger, tf_train_env, py_train_env)
