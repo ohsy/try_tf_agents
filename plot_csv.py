@@ -21,10 +21,14 @@ def main(file_prefix):
     plt.ylabel('Average Return')
     plt.grid()
     plt.xticks(rotation=45)
-    if "DaisoSokcho" in file_prefix:
+    if "DaisoSokcho" in file_prefix: 
         plt.ylim(-600,0)
+    elif "Pendulum" in file_prefix:
+        plt.ylim(-1500,0)
     elif "Reacher-v2" in file_prefix:
         plt.ylim(-60,0)
+    elif "CartPole" in file_prefix:
+        plt.ylim(0,200)
     else:
         plt.ylim(-100,100)
 

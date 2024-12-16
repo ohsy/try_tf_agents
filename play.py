@@ -144,7 +144,7 @@ def get_env(config, logger, envName, envWrapper, num_actions):
     return py_train_env, py_eval_env, tf_train_env, tf_eval_env
 
 
-def get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy):
+def get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greedy):
     qnet_fc_layer_params = config['qnet_fc_layer_params']
     actor_fc_layer_params = config['actor_fc_layer_params']
     critic_observation_fc_layer_params = config['critic_observation_fc_layer_params']
@@ -153,8 +153,22 @@ def get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy):
 
     # for CDQN
     num_atoms = config['num_atoms']
-    min_q_value = config['min_q_value']
-    max_q_value = config['max_q_value']
+    if "CartPole" in envName:
+        min_q_value = 0
+        max_q_value = 200
+    elif "Pendulum" in envName:
+        min_q_value = -1500
+        max_q_value = 0
+    elif "Reacher" in envName:
+        min_q_value = -60
+        max_q_value = 0
+    elif "DaisoSokcho" in envName:
+        min_q_value = -600
+        max_q_value = 0
+    else:
+        min_q_value = config['min_q_value']
+        max_q_value = config['max_q_value']
+    logger.info(f"min_q_value={min_q_value}, max_q_value={max_q_value}")
     n_step_update = config['n_step_update']
 
     learning_rate = config['learning_rate']
@@ -295,14 +309,25 @@ def get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy):
     return agent
 
 
-def get_agents(config, tf_observation_spec, merged_tf_action_spec, epsilon_greedy):
+def get_agents(config, logger, tf_observation_spec, merged_tf_action_spec, epsilon_greedy):
     qnet_fc_layer_params = config['qnet_fc_layer_params']
     learning_rate = config['learning_rate']
     gamma = config['gamma']
     # for CDQN
     num_atoms = config['num_atoms']
-    min_q_value = config['min_q_value']
-    max_q_value = config['max_q_value']
+    if "CartPole" in envName:
+        min_q_value = 0
+        max_q_value = 200
+    elif "Reacher" in envName:
+        min_q_value = -60
+        max_q_value = 0
+    elif "DaisoSokcho" in envName:
+        min_q_value = -600
+        max_q_value = 0
+    else:
+        min_q_value = config['min_q_value']
+        max_q_value = config['max_q_value']
+    logger.info(f"min_q_value={min_q_value}, max_q_value={max_q_value}")
     n_step_update = config['n_step_update']
 
     tf_action_specs = []
@@ -578,6 +603,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
+    parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replay_buffer with agent.policy after restoring agent", choices=['true','false'])
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path, which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
     parser.add_argument('-i', '--num_init_collect_steps', type=int, help="number of initial collect steps")
@@ -590,6 +616,7 @@ if __name__ == "__main__":
     replay_bufferName = config["replay_buffer"] if args.replay_buffer is None else args.replay_buffer
     driverName = config["driver"] if args.driver is None else args.driver
     checkpointPath = args.checkpoint_path
+    fill_after_restore = args.fill_after_restore
     reverb_checkpointPath = args.reverb_checkpoint_path
     num_actions = config['num_actions'] if args.num_actions is None else args.num_actions
     num_init_collect_steps = config['num_init_collect_steps'] if args.num_init_collect_steps is None else args.num_init_collect_steps
@@ -624,10 +651,10 @@ if __name__ == "__main__":
     # epsilon = tf.compat.v1.train.polynomial_decay(1.0, global_step, epsilon_decay_period, end_learning_rate=epsilon_greedy)
 
     if 'multiagent' in agentName:
-        agents = get_agents(config, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
+        agents = get_agents(config, logger, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
         tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
     else: 
-        agent = get_agent(config, tf_observation_spec, tf_action_spec, epsilon_greedy)  # one agent 
+        agent = get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greedy)  # one agent 
         tf_agent_collect_data_spec = agent.collect_data_spec 
     logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
@@ -639,12 +666,19 @@ if __name__ == "__main__":
         logger.info(f"random_policy avg_return={random_return}")
         logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+        before_fill = time.time()
         if checkpointPath is None:
             fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps)
+            after_fill = time.time()
             logger.info(f"after filling with random_policies, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+            logger.info(f"filling time = {after_fill - before_fill:.3f}")
         else:
             restore_agent_and_replay_buffer_for_multiagent(checkpointPath, reverb_checkpointPath, agent, replay_buffer)
+            if fill_after_restore == 'true':
+                fill_replay_buffer_for_multiagent(config, tf_train_env, agent.collect_policy, replay_buffer, num_init_collect_steps)
+            after_restore = time.time()
             logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+            logger.info(f"restoring time = {after_restore - before_fill:.3f}")
 
         game = MultiAgentGame(config, checkpointPath_toSave)
         with summaryWriter.as_default():
@@ -656,12 +690,19 @@ if __name__ == "__main__":
         logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
         logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
+        before_fill = time.time()
         if checkpointPath is None:
             fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps)
+            after_fill = time.time()
             logger.info(f"after filling with random_policy, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+            logger.info(f"filling time = {after_fill - before_fill:.3f}")
         else:
             restore_agent_and_replay_buffer(checkpointPath, reverb_checkpointPath, agent, replay_buffer)
+            if fill_after_restore == 'true':
+                fill_replay_buffer(config, py_train_env, tf_train_env, agent.collect_policy, observers, num_init_collect_steps)
+            after_restore = time.time()
             logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+            logger.info(f"restoring time = {after_restore - before_fill:.3f}")
 
         driver = get_driver(config, py_train_env, tf_train_env, agent.collect_policy, observers)
 
