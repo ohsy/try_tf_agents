@@ -26,11 +26,12 @@ from tf_agents.agents.categorical_dqn import categorical_dqn_agent
 from tf_agents.agents.ddpg import ddpg_agent, actor_network, critic_network
 from tf_agents.agents.td3 import td3_agent
 from tf_agents.agents.sac import sac_agent, tanh_normal_projection_network
+from tf_agents.agents.cql import cql_sac_agent
 from tf_agents.environments import suite_gym, tf_py_environment, wrappers
 # from tf_agents.environments import suite_pybullet
 from tf_agents.networks import sequential, actor_distribution_network, q_network, categorical_q_network
 
-from tf_agents.drivers import py_driver, dynamic_step_driver, dynamic_episode_driver
+# from tf_agents.drivers import py_driver, dynamic_step_driver, dynamic_episode_driver
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics, py_metrics
 from tf_agents.policies import actor_policy, greedy_policy, py_tf_eager_policy, random_tf_policy
@@ -39,6 +40,7 @@ from tf_agents.policies import epsilon_greedy_policy
 # from tf_agents.replay_buffers import reverb_replay_buffer, reverb_utils, tf_uniform_replay_buffer
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import Trajectory
+from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from tf_agents.specs.array_spec import BoundedArraySpec
 from tf_agents.utils import common, tensor_normalizer
@@ -149,7 +151,10 @@ def get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greed
     reward_scale_factor = config['reward_scale_factor']
     agent = None
 
-    if agentName in ["SAC"]:
+    if agentName in ["CQL_SAC"]:
+        tf_observation_spec = tensor_spec.BoundedTensorSpec([2], tf.float32, minimum=0, maximum=1)
+        tf_time_step_spec = ts.time_step_spec(tf_observation_spec)
+        tf_action_spec = tensor_spec.BoundedTensorSpec([1], tf.float32, -1, 1)
         actor_net = actor_distribution_network.ActorDistributionNetwork(
             tf_observation_spec, 
             tf_action_spec,
@@ -163,15 +168,18 @@ def get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greed
             joint_fc_layer_params=critic_joint_fc_layer_params,
             kernel_initializer='glorot_uniform',
             last_kernel_initializer='glorot_uniform')
-        agent = sac_agent.SacAgent(
+        agent = cql_sac_agent.CqlSacAgent(
             tf_time_step_spec,
             tf_action_spec,
-            actor_network=actor_net,
             critic_network=critic_net,
+            actor_network=actor_net,
+            # actor_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
+            # critic_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
+            # alpha_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
             actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
             critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
             alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
-            actor_policy_ctor=NormalizedActorPolicy,
+            # actor_policy_ctor=NormalizedActorPolicy,  # induces error of Inconsistent dtypes or shapes between tensors and tensor_spec.
             target_update_tau=target_update_tau,
             target_update_period=target_update_period,
             td_errors_loss_fn=tf.math.squared_difference,
@@ -179,7 +187,11 @@ def get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greed
             reward_scale_factor=reward_scale_factor,
             debug_summaries=True,
             summarize_grads_and_vars=True,
-            train_step_counter=train_utils.create_train_step())
+            train_step_counter=train_utils.create_train_step(),
+            cql_alpha=5.0,
+            num_cql_samples=1,
+            include_critic_entropy_term=False,
+            use_lagrange_cql_alpha=False,)
 
     assert agent is not None, "ending get_agent: agent is None"
     agent.initialize()
@@ -245,38 +257,7 @@ def get_replay_buffer(config, logger, tf_train_env, agent_collect_data_spec):
 
     return replay_buffer, iterator, observers
 
-
-def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps):
-    num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
-    num_init_collect_episodes = config['num_init_collect_episodes']
-    num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
-
-    time_step = py_train_env.reset()
-    if driverName in ['py']:
-        init_driver = py_driver.PyDriver(
-            py_train_env,
-            py_tf_eager_policy.PyTFEagerPolicy(tf_random_policy, use_tf_function=True),
-            observers,
-            max_steps=num_init_collect_steps)
-        init_driver.run(time_step) 
-    elif driverName in ['dynamic_step']:
-        init_driver = dynamic_step_driver.DynamicStepDriver(
-            tf_train_env,
-            tf_random_policy,
-            observers=observers,
-            num_steps=num_collect_steps_per_train_step)
-        for _ in range(num_init_collect_steps):
-            init_driver.run()
-    elif driverName in ['dynamic_episode']:
-        init_driver = dynamic_episode_driver.DynamicEpisodeDriver(
-            tf_train_env,
-            tf_random_policy,
-            observers=observers,
-            num_episodes=num_collect_episodes_per_train_step,)
-        for _ in range(num_init_collect_episodes):
-            init_driver.run()
-
-
+"""
 def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observers):
     num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
     num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
@@ -306,7 +287,7 @@ def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observe
             observers=observers,
             num_episodes=num_collect_episodes_per_train_step,)
     return driver
-
+"""
 
 def restore_agent_and_replay_buffer(checkpointPath, reverb_checkpointPath, agent, replay_buffer):
     # restore agent and replay buffer if checkpoints are given
@@ -358,9 +339,9 @@ if __name__ == "__main__":
             choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], 
             help="environment wrapper: 'history' adds observation and action history to the environment's observations.")
-    parser.add_argument('-a', '--agent', type=str, choices=['SAC','CQL'])
+    parser.add_argument('-a', '--agent', type=str, choices=['CQL_SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
-    parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
+    # parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
     parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replay_buffer with agent.policy after restoring agent", choices=['true','false'])
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, 
@@ -376,7 +357,7 @@ if __name__ == "__main__":
     # agentName = config["agent"] if args.agent is None else args.agent
     agentName = args.agent
     replay_bufferName = config["replay_buffer"] if args.replay_buffer is None else args.replay_buffer
-    driverName = config["driver"] if args.driver is None else args.driver
+    # driverName = config["driver"] if args.driver is None else args.driver
     checkpointPath = args.checkpoint_path
     fill_after_restore = args.fill_after_restore
     reverb_checkpointPath = args.reverb_checkpoint_path
@@ -399,7 +380,7 @@ if __name__ == "__main__":
     logger.info(f"envWrapper={envWrapper}")  
     logger.info(f"agent={agentName}")
     logger.info(f"replay_buffer={replay_bufferName}")
-    logger.info(f"driver={driverName}")
+    # logger.info(f"driver={driverName}")
     logger.info(f"num_actions={num_actions}")
     logger.info(f"num_init_collect_steps={num_init_collect_steps}")
     logger.info(f"epsilon_greedy={epsilon_greedy}")
@@ -426,23 +407,24 @@ if __name__ == "__main__":
     logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
     logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
     # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
-    before_fill = time.time()
-    if checkpointPath is None:
-        fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps)
-        after_fill = time.time()
-        logger.info(f"after filling with random_policy, replay_buffer.num_frames()={replay_buffer.num_frames()}")
-        logger.info(f"filling time = {after_fill - before_fill:.3f}")
-    else:
-        restore_agent_and_replay_buffer(checkpointPath, reverb_checkpointPath, agent, replay_buffer)
-        if fill_after_restore == 'true':
-            fill_replay_buffer(config, py_train_env, tf_train_env, agent.collect_policy, observers, num_init_collect_steps)
-        after_restore = time.time()
-        logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
-        logger.info(f"restoring time = {after_restore - before_fill:.3f}")
 
-    driver = get_driver(config, py_train_env, tf_train_env, agent.collect_policy, observers)
+    # driver = get_driver(config, py_train_env, tf_train_env, agent.collect_policy, observers)
 
-    game = Game(config, checkpointPath_toSave)
-    with summaryWriter.as_default():
-        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpoint_max_to_keep)
+    _obs_spec = tensor_spec.BoundedTensorSpec([2], tf.float32, minimum=0, maximum=1)
+    _time_step_spec = ts.time_step_spec(_obs_spec)
+    _action_spec = tensor_spec.BoundedTensorSpec([1], tf.float32, -1, 1)
+    trajectory_spec = Trajectory(
+        step_type=_time_step_spec.step_type,
+        observation=_time_step_spec.observation,
+        action=_action_spec,
+        policy_info=(),
+        next_step_type=_time_step_spec.step_type,
+        reward=tensor_spec.BoundedTensorSpec([], tf.float32, minimum=0.0, maximum=1.0, name='reward'),
+        discount=_time_step_spec.discount,
+    )
+
+    sample_trajectory_experience = tensor_spec.sample_spec_nest(trajectory_spec, outer_dims=(3, 2))
+    print(f"sample_trajectory_experience={sample_trajectory_experience}", flush=True)
+    agent.train(sample_trajectory_experience)
+    print(f"CQL train done")
 
