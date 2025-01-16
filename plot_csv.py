@@ -14,8 +14,8 @@ def main(file_prefix):
     colors = ['b','c','g','m','r','y','k']
     plt.figure(figsize=(10, 6))
     for i in range(len(data.columns) -2):
-        plt.plot(data['train_step'], data[f'avg_return_{i}'], marker='o', linestyle='-', color=colors[i])
-    plt.plot(data['train_step'], data['avg_of_avg_returns'], marker='o', linestyle='-', color=colors[-1])
+        plt.plot(data['time_step'], data[f'avg_return_{i}'], marker='o', linestyle='-', color=colors[i])
+    plt.plot(data['time_step'], data['avg_of_avg_returns'], marker='o', linestyle='-', color=colors[-1])
     plt.title('Average Return vs Train Step')
     plt.xlabel('Train Step')
     plt.ylabel('Average Return')
@@ -24,7 +24,7 @@ def main(file_prefix):
     if "DaisoSokcho" in file_prefix: 
         plt.ylim(-600,0)
     elif "Pendulum" in file_prefix:
-        plt.ylim(-1500,0)
+        plt.ylim(-2000,0)
     elif "Reacher-v2" in file_prefix:
         plt.ylim(-60,0)
     elif "CartPole" in file_prefix:

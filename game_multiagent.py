@@ -100,11 +100,10 @@ def multiagent_compute_avg_return(environment, policies=None, agents=None, num_e
 
 
 class MultiAgentGame:
-    def __init__(self, config, checkpointPath_toSave):
+    def __init__(self, config):
         # self.num_init_collect_steps = config['num_init_collect_steps']
         self.num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
         # self.num_episodes_to_eval = config['num_episodes_to_eval']
-        self.checkpointPath_toSave = checkpointPath_toSave
         self.reverb_port = config['reverb_port']
         # self.num_train_steps = config['num_train_steps']
         # self.num_train_steps_to_log = max((int) (self.num_train_steps / 250), 1)
@@ -118,35 +117,16 @@ class MultiAgentGame:
         self.num_episodes_to_eval = config['num_episodes_to_eval']
         self.train_step = 0
 
-    def save(self, logger, agents, replay_buffer, checkpoint_max_to_keep):
-        # checkpointPath = os.path.join(os.path.abspath(os.getcwd()), f'{self.resultPath}/model')
-        logger.info(f"saving, checkpointPath_toSave={self.checkpointPath_toSave}")
-        for ix, agent in enumerate(agents):
-            checkpointPath = os.path.join(self.checkpointPath_toSave, f'{ix}')
-            if ix == 0:
-                train_checkpointer = common.Checkpointer(
-                    ckpt_dir=checkpointPath,
-                    max_to_keep=checkpoint_max_to_keep,
-                    agent=agent,
-                    policy=agent.policy,
-                    replay_buffer=replay_buffer,
-                    global_step=agent.train_step_counter)
-            else:
-                train_checkpointer = common.Checkpointer(
-                    ckpt_dir=checkpointPath,
-                    max_to_keep=checkpoint_max_to_keep,
-                    agent=agent,
-                    policy=agent.policy,
-                    global_step=agent.train_step_counter)
-            train_checkpointer.save(agent.train_step_counter)
-
-        if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer']:
-            reverb_client = reverb.Client(f"localhost:{self.reverb_port}") 
-            reverb_checkpointPath = reverb_client.checkpoint()
-            logger.info(f"reverb_checkpointPath={reverb_checkpointPath}")
+    def save(self, logger, agents, checkpointers, reverb_client):
+        for agent, checkpointer in zip(agents, checkpointers):
+            checkpointer.save(agent.train_step_counter)
+        if reverb_client is not None:
+            reverb_checkpointPath_to_restore_later = reverb_client.checkpoint()
+            logger.info(f"reverb_checkpointPath_to_restore_later={reverb_checkpointPath_to_restore_later}")
+        logger.info(f"agents and replay_buffer saved")
 
 
-    def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpoint_max_to_keep=2):
+    def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers, reverb_client):
 
         before_all = time.time()
 
@@ -195,9 +175,9 @@ class MultiAgentGame:
 
             train_step = agent.train_step_counter.numpy()
             if train_step % self.num_train_steps_to_save == 0:
-                self.save(logger, agents, replay_buffer, checkpoint_max_to_keep)
+                self.save(logger, agents, checkpointers, reverb_client)
 
-        self.save(logger, agents, replay_buffer, checkpoint_max_to_keep)  # once more in last time
+        self.save(logger, agents, checkpointers, reverb_client)  # once more in last time
 
         after_all = time.time()
         logger.info(f"total_time={after_all-before_all:.3f}")
