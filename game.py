@@ -1,7 +1,10 @@
 """
 game with tf-agents
+2025.1
+Sangyeop Oh
 """
 
+import sys
 import time
 # import reverb
 import tensorflow as tf
@@ -32,9 +35,9 @@ def compute_avg_return(environment, policy, num_episodes=10):
 class Game:
     def __init__(self, config):
         self.reverb_port = config['reverb_port']
-        self.num_time_steps = config['num_time_steps']
-        self.num_time_steps_to_log = max((int) (self.num_time_steps / config['num_logs']), 1)
-        self.num_time_steps_to_eval = max((int) (self.num_time_steps / config['num_evals']), 1)
+        self.num_time_steps = config['num_time_steps'] if config['num_time_steps'] > 0 else sys.maxsize
+        self.num_time_steps_to_log = config['num_time_steps_to_log']  # max((int) (self.num_time_steps / config['num_logs']), 1)
+        self.num_time_steps_to_eval = config['num_time_steps_to_eval']  # max((int) (self.num_time_steps / config['num_evals']), 1)
         self.num_time_steps_to_train = config['num_time_steps_to_train']
         self.num_train_steps_to_save = config['num_train_steps_to_save']
         self.num_episodes_to_eval = config['num_episodes_to_eval']
