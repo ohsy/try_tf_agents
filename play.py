@@ -589,21 +589,10 @@ def game_run_multiagent(config, logger, tf_train_env, tf_observation_spec, tf_ac
     checkpointers = []
     for ix, agent in enumerate(agents):
         checkpointPath = os.path.join(checkpointPath_toSave, f'{ix}')
-        if ix == 0:
-            checkpointer = common.Checkpointer(
-                ckpt_dir=checkpointPath,
-                max_to_keep=checkpoint_max_to_keep,
-                agent=agent,
-                policy=agent.policy,
-                replay_buffer=replay_buffer,  # only 0th replay_buffer is saved
-                global_step=agent.train_step_counter)
-        else:
-            checkpointer = common.Checkpointer(
-                ckpt_dir=checkpointPath,
-                max_to_keep=checkpoint_max_to_keep,
-                agent=agent,
-                policy=agent.policy,
-                global_step=agent.train_step_counter)
+        kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
+        if ix == 0:  # since there is only one replay_buffer for multi-agents
+            kwargs['replay_buffer'] = replay_buffer
+        checkpointer = common.Checkpointer(ckpt_dir=checkpointPath, max_to_keep=checkpoint_max_to_keep, **kwargs)
         checkpointers.append(checkpointer)
     reverb_client = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
 
@@ -660,16 +649,18 @@ if __name__ == "__main__":
     print(f"online arguments={sys.argv}", flush=True)
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, 
-            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete','DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
+            choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete',\
+                    'DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], 
             help="environment wrapper: 'history' adds observation and action history to the environment's observations.")
     parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'])
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
-    parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replay_buffer with agent.policy after restoring agent", choices=['true','false'])
-    parser.add_argument('-p', '--reverb_checkpoint_path', type=str, 
-            help="to restore: parent directory of saved path, which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
+    parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replay_buffer with agent.policy after restoring agent", 
+            choices=['true','false'])
+    parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path," + 
+            " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
     parser.add_argument('-i', '--num_init_collect_steps', type=int, help="number of initial collect steps")
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
@@ -735,13 +726,8 @@ if __name__ == "__main__":
 
 
     logger.info(f"checkpointPath_toSave={checkpointPath_toSave}")
-    checkpointer = common.Checkpointer(
-        ckpt_dir=checkpointPath_toSave,
-        max_to_keep=checkpoint_max_to_keep,
-        agent=agent,
-        policy=agent.policy,
-        replay_buffer=replay_buffer,
-        global_step=agent.train_step_counter)
+    kwargs = {'agent': agent, 'policy': agent.policy, 'replay_buffer': replay_buffer, 'global_step': agent.train_step_counter}
+    checkpointer = common.Checkpointer(ckpt_dir=checkpointPath_toSave, max_to_keep=checkpoint_max_to_keep, **kwargs)
     reverb_client = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
 
 

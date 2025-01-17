@@ -46,13 +46,9 @@ def merge_action(actions):
     """
     actions: list of actions
     """
-    # print(f"in merge_action, actions={actions}",flush=True)
     merged = tf.reshape(actions, [1,len(actions)])
     # merged = tf.cast(merged, dtype=tf.int32)
-    # print(f"in merge_action, merged={merged}",flush=True)
     return merged
-    # return np.array([actions], dtype=np.int32)
-    # return [actions]
 
 
 def trajectories_from_merged_trajectory(merged, num_trajectories):
@@ -81,7 +77,6 @@ def multiagent_compute_avg_return(environment, policies=None, agents=None, num_e
 
     total_return = 0.0
     for _ in range(num_episodes):
-
         env_step = environment.reset()
         episode_return = 0.0
 
@@ -160,8 +155,8 @@ class MultiAgentGame:
                 # logger.debug(f"trajectories={trajectories}")
 
                 train_loss = 0
-                for ix, agent in enumerate(agents):
-                    loss_info = agent.train(trajectories[ix])
+                for agent, trajectory in zip(agents, trajectories):
+                    loss_info = agent.train(trajectory)
                     train_loss += loss_info.loss
 
             if time_step % self.num_time_steps_to_log == 0:

@@ -13,17 +13,13 @@ from tf_agents.utils import common
 # See also the metrics module for standard implementations of different metrics.
 # https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
 def compute_avg_return(environment, policy, num_episodes=10):
-
     total_return = 0.0
     for _ in range(num_episodes):
-
         env_step = environment.reset()
         episode_return = 0.0
 
         while not env_step.is_last():
             action_step = policy.action(env_step)
-            # print(f"in compute_avg_return, action_step={action_step}", flush=True)
-            # print(f"in compute_avg_return, action={action_step.action}", flush=True)
             env_step = environment.step(action_step.action)
             episode_return += env_step.reward
         total_return += episode_return
