@@ -460,61 +460,61 @@ def get_replay_buffer(config, logger, tf_train_env, agent_collect_data_spec):
     return replay_buffer, iterator, observers
 
 
-def fill_replay_buffer(config, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps):
-    num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
-    num_init_collect_episodes = config['num_init_collect_episodes']
-    num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
+def fill_replay_buffer(config, py_train_env, tf_train_env, policy, observers, num_env_steps_to_collect_init):
+    num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
+    num_episodes_to_collect_init = config['num_episodes_to_collect_init']
+    num_episodes_to_collect_per_time_step = config['num_episodes_to_collect_per_time_step']
 
     env_step = py_train_env.reset()
     if driverName in ['py']:
         init_driver = py_driver.PyDriver(
             py_train_env,
-            py_tf_eager_policy.PyTFEagerPolicy(tf_random_policy, use_tf_function=True),
+            py_tf_eager_policy.PyTFEagerPolicy(policy, use_tf_function=True),
             observers,
-            max_steps=num_init_collect_steps)
+            max_steps=num_env_steps_to_collect_init)
         init_driver.run(env_step) 
     elif driverName in ['dynamic_step']:
         init_driver = dynamic_step_driver.DynamicStepDriver(
             tf_train_env,
-            tf_random_policy,
+            policy,
             observers=observers,
-            num_steps=num_collect_steps_per_train_step)
-        for _ in range(num_init_collect_steps):
+            num_steps=num_env_steps_to_collect_per_time_step)
+        for _ in range(num_env_steps_to_collect_init):
             init_driver.run()
     elif driverName in ['dynamic_episode']:
         init_driver = dynamic_episode_driver.DynamicEpisodeDriver(
             tf_train_env,
-            tf_random_policy,
+            policy,
             observers=observers,
-            num_episodes=num_collect_episodes_per_train_step,)
-        for _ in range(num_init_collect_episodes):
+            num_episodes=num_episodes_to_collect_per_time_step,)
+        for _ in range(num_episodes_to_collect_init):
             init_driver.run()
 
 
-def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps):
+def fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_env_steps_to_collect_init):
     tf_train_env.reset()
     if 'multiagent' in agentName:
         # Collect random policy steps and save to the replay buffer.
-        for _ in range(num_init_collect_steps):
+        for _ in range(num_env_steps_to_collect_init):
             collect_trajectory(logger, tf_train_env, replay_buffer, policies=tf_random_policies)
 
 
 def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observers):
-    num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
-    num_collect_episodes_per_train_step = config['num_collect_episodes_per_train_step']
+    num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
+    num_episodes_to_collect_per_time_step = config['num_episodes_to_collect_per_time_step']
 
     if driverName in ['py']:
         driver = py_driver.PyDriver(
             py_train_env,
             py_tf_eager_policy.PyTFEagerPolicy(agent_collect_policy, use_tf_function=True),
             observers,
-            max_steps=num_collect_steps_per_train_step)
+            max_steps=num_env_steps_to_collect_per_time_step)
     elif driverName in ['dynamic_step']:
         driver = dynamic_step_driver.DynamicStepDriver(
             tf_train_env,
             agent_collect_policy,
             observers=observers,
-            num_steps=num_collect_steps_per_train_step)
+            num_steps=num_env_steps_to_collect_per_time_step)
     elif driverName in ['dynamic_episode']:
         # environment_steps_metric = tf_metrics.EnvironmentSteps()
         # step_metrics = [tf_metrics.NumberOfEpisodes(), environment_steps_metric,]
@@ -526,7 +526,7 @@ def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observe
             agent_collect_policy,
             # observers=[replay_buffer.add_batch] + train_metrics,
             observers=observers,
-            num_episodes=num_collect_episodes_per_train_step,)
+            num_episodes=num_episodes_to_collect_per_time_step,)
     return driver
 
 
@@ -603,14 +603,14 @@ def game_run_multiagent(config, logger, tf_train_env, tf_observation_spec, tf_ac
     logger.info(f"before filling or restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
     before_fill = time.time()
     if checkpointPath_toRestore is None:
-        fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_init_collect_steps)
+        fill_replay_buffer_for_multiagent(config, tf_train_env, tf_random_policies, replay_buffer, num_env_steps_to_collect_init)
         after_fill = time.time()
         logger.info(f"after filling with random_policies, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         logger.info(f"filling time = {after_fill - before_fill:.3f}")
     else:
         restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer)
         if fill_after_restore == 'true':
-            fill_replay_buffer_for_multiagent(config, tf_train_env, agent.collect_policy, replay_buffer, num_init_collect_steps)
+            fill_replay_buffer_for_multiagent(config, tf_train_env, agent.collect_policy, replay_buffer, num_env_steps_to_collect_init)
         after_restore = time.time()
         logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         logger.info(f"restoring time = {after_restore - before_fill:.3f}")
@@ -662,7 +662,7 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path," + 
             " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
-    parser.add_argument('-i', '--num_init_collect_steps', type=int, help="number of initial collect steps")
+    parser.add_argument('-i', '--num_env_steps_to_collect_init', type=int, help="number of initial collect steps")
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     args = parser.parse_args()
 
@@ -670,12 +670,13 @@ if __name__ == "__main__":
     envWrapper = config["environment_wrapper"] if args.environment_wrapper is None else args.environment_wrapper
     agentName = config["agent"] if args.agent is None else args.agent
     replay_bufferName = config["replay_buffer"] if args.replay_buffer is None else args.replay_buffer
-    driverName = config["driver"] if args.driver is None else args.driver
+    # driverName = config["driver"] if args.driver is None else args.driver
+    driverName = args.driver  # can be None
     checkpointPath_toRestore = args.checkpoint_path
     fill_after_restore = args.fill_after_restore
     reverb_checkpointPath_toRestore = args.reverb_checkpoint_path
     num_actions = config['num_actions'] if args.num_actions is None else args.num_actions
-    num_init_collect_steps = config['num_init_collect_steps'] if args.num_init_collect_steps is None else args.num_init_collect_steps
+    num_env_steps_to_collect_init = config['num_env_steps_to_collect_init'] if args.num_env_steps_to_collect_init is None else args.num_env_steps_to_collect_init
     epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
 
     date_time = datetime.now().strftime('%m%d_%H%M%S')
@@ -696,7 +697,7 @@ if __name__ == "__main__":
     logger.info(f"replay_buffer={replay_bufferName}")
     logger.info(f"driver={driverName}")
     logger.info(f"num_actions={num_actions}")
-    logger.info(f"num_init_collect_steps={num_init_collect_steps}")
+    logger.info(f"num_env_steps_to_collect_init={num_env_steps_to_collect_init}")
     logger.info(f"epsilon_greedy={epsilon_greedy}")
     logger.info(f"checkpoint_max_to_keep={checkpoint_max_to_keep}")
 
@@ -739,14 +740,14 @@ if __name__ == "__main__":
     # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     before_fill = time.time()
     if checkpointPath_toRestore is None:
-        fill_replay_buffer(config, logger, py_train_env, tf_train_env, tf_random_policy, observers, num_init_collect_steps)
+        fill_replay_buffer(config, logger, py_train_env, tf_train_env, tf_random_policy, observers, num_env_steps_to_collect_init)
         after_fill = time.time()
         logger.info(f"after filling with random_policy, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         logger.info(f"filling time = {after_fill - before_fill:.3f}")
     else:
         restore_agent_and_replay_buffer(logger, checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer)
         if fill_after_restore == 'true':
-            fill_replay_buffer(config, logger, py_train_env, tf_train_env, agent.collect_policy, observers, num_init_collect_steps)
+            fill_replay_buffer(config, logger, py_train_env, tf_train_env, agent.collect_policy, observers, num_env_steps_to_collect_init)
         after_restore = time.time()
         logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
         logger.info(f"restoring time = {after_restore - before_fill:.3f}")

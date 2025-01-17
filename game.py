@@ -9,6 +9,16 @@ import time
 # import reverb
 import tensorflow as tf
 from tf_agents.utils import common
+from tf_agents.trajectories import from_transition
+
+
+def collect_trajectory(logger, environment, replay_buffer, policy):
+    env_step = environment.current_time_step()
+    action_step = policy.action(env_step)
+    next_env_step = environment.step(action_step.action)
+    trajectory = from_transition(time_step, action_step, next_time_step)
+    replay_buffer.add_batch(trajectory)
+
 
 # See also the metrics module for standard implementations of different metrics.
 # https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
@@ -30,6 +40,7 @@ def compute_avg_return(environment, policy, num_episodes=10):
 
 class Game:
     def __init__(self, config):
+        self.num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
         self.reverb_port = config['reverb_port']
         self.num_time_steps = config['num_time_steps'] if config['num_time_steps'] > 0 else sys.maxsize
         self.num_time_steps_to_log = config['num_time_steps_to_log']  # max((int) (self.num_time_steps / config['num_logs']), 1)
@@ -37,6 +48,7 @@ class Game:
         self.num_time_steps_to_train = config['num_time_steps_to_train']
         self.num_train_steps_to_save = config['num_train_steps_to_save']
         self.num_episodes_to_eval = config['num_episodes_to_eval']
+        self.train_step = 0  # for epsilon decay
 
 
     def save(self, logger, agent, checkpointer, reverb_client):
@@ -54,7 +66,7 @@ class Game:
         agent.train = common.function(agent.train)
 
         # Reset the train step.
-        agent.train_step_counter.assign(tf.Variable(0, dtype=tf.int64))
+        agent.train_step_counter.assign(tf.Variable(self.train_step, dtype=tf.int64))  # sync to self.train_step
 
         # Evaluate the agent's policy once before training.
         avg_return = compute_avg_return(tf_eval_env, agent.policy, self.num_episodes_to_eval)
@@ -64,24 +76,28 @@ class Game:
         env_step = py_train_env.reset()
         before = time.time()
         for time_step in range(self.num_time_steps):
+            self.train_step = train_step  # for epsilon_decay
 
-            # drive env multiple steps and save env_steps to replay_buffer.
-            if driver.__class__.__name__ in ['PyDriver']:
+            # collect trajectories from env and fill in replay buffer
+            if driver is None:
+                for _ in range(self.num_env_steps_to_collect_per_time_step):
+                    collect_trajectory(logger, tf_train_env, replay_buffer, agent.collect_policy)
+            elif driver.__class__.__name__ in ['PyDriver']:
                 env_step, _ = driver.run(env_step)
             elif driver.__class__.__name__ in ['DynamicStepDriver','DynamicEpisodeDriver']:
                 driver.run()
 
             if time_step % self.num_time_steps_to_train == 0:
-                # experience, unused_info = next(iterator)
-                experience, unused_info = iterator.get_next()  # experience as tensor
-                logger.debug(f"experience={experience}")
-                loss_info = agent.train(experience)
+                # trajectory, unused_info = next(iterator)
+                trajectory, unused_info = iterator.get_next()  # trajectory as tensor
+                logger.debug(f"trajectory={trajectory}")
+                loss_info = agent.train(trajectory)
                 train_loss = loss_info.loss
+                if time_step % self.num_time_steps_to_log == 0:
+                    after = time.time()
+                    logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
+                    before = after
 
-            if time_step % self.num_time_steps_to_log == 0:
-                after = time.time()
-                logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
-                before = after
             if time_step % self.num_time_steps_to_eval == 0:
                 avg_return = compute_avg_return(tf_eval_env, agent.policy, self.num_episodes_to_eval)
                 logger.info(f'time_step={time_step} avg_return={avg_return:.3f}')

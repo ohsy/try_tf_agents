@@ -13,14 +13,6 @@ from tf_agents.policies import random_tf_policy
 
 
 def collect_trajectory(logger, environment, replay_buffer, policies=None, agents=None):
-    """
-    based on the following code for one agent:
-    time_step = environment.current_time_step()
-    action_step = policy.action(time_step)
-    next_time_step = environment.step(action_step.action)
-    traj = from_transition(time_step, action_step, next_time_step)
-    replay_buffer.add_batch(traj)
-    """
     assert not(policies is None and agents is None), f"either policies or agents must not be None"
     if policies is None:
         policies = []
@@ -96,21 +88,16 @@ def multiagent_compute_avg_return(environment, policies=None, agents=None, num_e
 
 class MultiAgentGame:
     def __init__(self, config):
-        # self.num_init_collect_steps = config['num_init_collect_steps']
-        self.num_collect_steps_per_train_step = config['num_collect_steps_per_train_step']
-        # self.num_episodes_to_eval = config['num_episodes_to_eval']
+        self.num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
         self.reverb_port = config['reverb_port']
-        # self.num_train_steps = config['num_train_steps']
-        # self.num_train_steps_to_log = max((int) (self.num_train_steps / 250), 1)
-        # self.num_train_steps_to_eval = max((int) (self.num_train_steps / 50), 1)
-        # self.num_train_steps_to_save = max((int) (self.num_train_steps / 5), 1)
-        self.num_time_steps = config['num_time_steps']
-        self.num_time_steps_to_log = max((int) (self.num_time_steps / 500), 1)
-        self.num_time_steps_to_eval = max((int) (self.num_time_steps / 50), 1)
+        self.num_time_steps = config['num_time_steps'] if config['num_time_steps'] > 0 else sys.maxsize
+        self.num_time_steps_to_log = config['num_time_steps_to_log']  # max((int) (self.num_time_steps / config['num_logs']), 1)
+        self.num_time_steps_to_eval = config['num_time_steps_to_eval']  # max((int) (self.num_time_steps / config['num_evals']), 1)
         self.num_time_steps_to_train = config['num_time_steps_to_train']
         self.num_train_steps_to_save = config['num_train_steps_to_save']
         self.num_episodes_to_eval = config['num_episodes_to_eval']
-        self.train_step = 0
+        self.train_step = 0  # for epsilon decay
+
 
     def save(self, logger, agents, checkpointers, reverb_client):
         for agent, checkpointer in zip(agents, checkpointers):
@@ -142,27 +129,25 @@ class MultiAgentGame:
         for time_step in range(self.num_time_steps):
             self.train_step = train_step  # for epsilon_decay
 
-            # collect a few steps and save in the replay buffer.
-            for _ in range(self.num_collect_steps_per_train_step):
+            # collect trajectories from env and fill in replay buffer
+            for _ in range(self.num_env_steps_to_collect_per_time_step):
                 collect_trajectory(logger, tf_train_env, replay_buffer, agents=agents)
 
             if time_step % self.num_time_steps_to_train == 0:
-                # experience, unused_info = next(iterator)
+                # trajectory, unused_info = next(iterator)
                 trajectory, unused_info = iterator.get_next()  # trajectory as tensor
-                # logger.debug(f"trajectory={trajectory}")
-
+                logger.debug(f"trajectory={trajectory}")
                 trajectories = trajectories_from_merged_trajectory(trajectory, len(agents))
-                # logger.debug(f"trajectories={trajectories}")
-
+                logger.debug(f"trajectories={trajectories}")
                 train_loss = 0
                 for agent, trajectory in zip(agents, trajectories):
                     loss_info = agent.train(trajectory)
                     train_loss += loss_info.loss
+                if time_step % self.num_time_steps_to_log == 0:
+                    after = time.time()
+                    logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
+                    before = after
 
-            if time_step % self.num_time_steps_to_log == 0:
-                after = time.time()
-                logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
-                before = after
             if time_step % self.num_time_steps_to_eval == 0:
                 avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
                 logger.info(f'time_step={time_step} avg_return={avg_return:.3f}')
