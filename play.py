@@ -146,7 +146,7 @@ def get_env(config, logger, envName, envWrapper, num_actions):
     return py_train_env, py_eval_env, tf_train_env, tf_eval_env
 
 
-def get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greedy):
+def get_agent(config, logger, agentName, tf_observation_spec, tf_action_spec, epsilon_greedy):
     qnet_fc_layer_params = config['qnet_fc_layer_params']
     actor_fc_layer_params = config['actor_fc_layer_params']
     critic_observation_fc_layer_params = config['critic_observation_fc_layer_params']
@@ -313,89 +313,26 @@ def get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greed
     return agent
 
 
-def get_agents(config, logger, tf_observation_spec, merged_tf_action_spec, epsilon_greedy):
-    qnet_fc_layer_params = config['qnet_fc_layer_params']
-    learning_rate = config['learning_rate']
-    gamma = config['gamma']
-    # for CDQN
-    num_atoms = config['num_atoms']
-    if "CartPole" in envName:
-        min_q_value = 0
-        max_q_value = 200
-    elif "Reacher" in envName:
-        min_q_value = -60
-        max_q_value = 0
-    elif "DaisoSokcho" in envName:
-        min_q_value = -600
-        max_q_value = 0
-    else:
-        min_q_value = config['min_q_value']
-        max_q_value = config['max_q_value']
-    logger.info(f"min_q_value={min_q_value}, max_q_value={max_q_value}")
-    n_step_update = config['n_step_update']
-
-    tf_action_specs = []
-    q_nets = []
-    agents = []
+def get_agents(config, logger, agentName, tf_observation_spec, merged_tf_action_spec, epsilon_greedy):
     if merged_tf_action_spec.maximum.ndim == 0:  # spec.maximum is np.ndarray
         maxima = np.full(merged_tf_action_spec.shape, merged_tf_action_spec.maximum)
     else:
         maxima = merged_tf_action_spec.maximum
+    logger.info(f"multiagent: tf_action_spec maxima={maxima}")
 
+    single_agentName = agentName.split('_multiagent')[0]
+    agents = []
     for ix, mx in enumerate(maxima):
-        tf_action_specs.append(
-            tensor_spec.from_spec(
-                BoundedArraySpec(
-                    shape=(),
-                    dtype=np.int32, # CartPole's action_spec dtype =int64. ActionDiscreteWrapper(DaisoSokcho)'s =int32
-                    name=f'action{ix}', 
-                    minimum=0, 
-                    maximum=mx)))
-
-    if agentName in ["DQN_multiagent"]:
-        for ix, tf_action_spec in enumerate(tf_action_specs):
-            q_nets.append(
-                q_network.QNetwork(
-                    tf_observation_spec,
-                    tf_action_spec,
-                    fc_layer_params=qnet_fc_layer_params))
-            agents.append(
-                dqn_agent.DqnAgent(
-                    tf_env_step_spec,
-                    tf_action_spec,
-                    q_network=q_nets[ix],
-                    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-                    epsilon_greedy=epsilon_greedy,
-                    td_errors_loss_fn=common.element_wise_squared_loss,
-                    debug_summaries=True,
-                    summarize_grads_and_vars=True,
-                    train_step_counter=tf.Variable(0, dtype=tf.int64)))
-            agents[ix].initialize()
-
-    elif agentName in ["CDQN_multiagent"]:
-        for ix, tf_action_spec in enumerate(tf_action_specs):
-            q_nets.append(
-                categorical_q_network.CategoricalQNetwork(
-                    tf_observation_spec,
-                    tf_action_spec,
-                    num_atoms=num_atoms,
-                    fc_layer_params=qnet_fc_layer_params))
-            agents.append(
-                categorical_dqn_agent.CategoricalDqnAgent(
-                    tf_env_step_spec,
-                    tf_action_spec,
-                    categorical_q_network=q_nets[ix],
-                    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-                    epsilon_greedy=epsilon_greedy,
-                    min_q_value=min_q_value,
-                    max_q_value=max_q_value,
-                    n_step_update=n_step_update,
-                    td_errors_loss_fn=common.element_wise_squared_loss,
-                    gamma=gamma,
-                    debug_summaries=True,
-                    summarize_grads_and_vars=True,
-                    train_step_counter=tf.Variable(0, dtype=tf.int64)))
-            agents[ix].initialize()
+        tf_action_spec = tensor_spec.from_spec(
+            BoundedArraySpec(
+                shape=(),
+                dtype=np.int32, # CartPole's action_spec dtype =int64. ActionDiscreteWrapper(DaisoSokcho)'s =int32
+                name=f'action{ix}', 
+                minimum=0, 
+                maximum=mx)))
+        agent = get_agent(config, logger, single_agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)
+        agents.append(agent)
+        agents[ix].initialize()
     logger.info(f"multiagent: number of agents = {len(agents)}")
     return agents
 
@@ -530,71 +467,54 @@ def get_driver(config, py_train_env, tf_train_env, agent_collect_policy, observe
     return driver
 
 
-def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer):
-    # restore agent and replay buffer if checkpoints are given
+def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer=None):
+    """
+    restore agent and replay buffer if checkpoints are given
+    reverb replay_buffer is restored elsewhere
+    """
     if checkpointPath_toRestore is None:
         return
-    if reverb_checkpointPath_toRestore is not None:  # reverb replay_buffer is restored elsewhere
-        train_checkpointer = common.Checkpointer(
-            ckpt_dir=checkpointPath_toRestore,
-            max_to_keep=2,
-            agent=agent,
-            policy=agent.policy,
-            # replay_buffer=replay_buffer,
-            global_step=agent.train_step_counter)
-    elif reverb_checkpointPath_toRestore is None:
-        train_checkpointer = common.Checkpointer(
-            ckpt_dir=checkpointPath_toRestore,
-            max_to_keep=2,
-            agent=agent,
-            policy=agent.policy,
-            replay_buffer=replay_buffer,
-            global_step=agent.train_step_counter)
-    train_checkpointer.initialize_or_restore()
+    kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
+    if reverb_checkpointPath_toRestore is None and replay_buffer is not None:  
+        kwargs['replay_buffer'] = replay_buffer
+    checkpointer = common.Checkpointer(ckpt_dir=checkpointPath_toRestore, **kwargs)
+    checkpointer.initialize_or_restore()
+
 
 def restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replay_buffer):
-    # restore agents and replay buffer if checkpoints are given
+    """
+    restore agent and replay buffer if checkpoints are given
+    reverb replay_buffer is restored elsewhere
+    """
     if checkpointPath_toRestore is None:
         return
     for ix, agent in enumerate(agents):
         ckptPath = os.path.join(checkpointPath_toRestore, f'{ix}')
-        if (reverb_checkpointPath_toRestore is not None) or (reverb_checkpointPath_toRestore is None and ix != 0):
-            train_checkpointer = common.Checkpointer(
-                ckpt_dir=ckptPath,
-                max_to_keep=2,
-                agent=agent,
-                policy=agent.policy,
-                global_step=agent.train_step_counter)
-        elif reverb_checkpointPath_toRestore is None and ix == 0:
-            train_checkpointer = common.Checkpointer(
-                ckpt_dir=ckptPath,
-                max_to_keep=2,
-                agent=agent,
-                policy=agent.policy,
-                replay_buffer=replay_buffer,
-                global_step=agent.train_step_counter)
-        train_checkpointer.initialize_or_restore()
+        if ix == 0: 
+            restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent, replay_buffer):
+        else:
+            restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent):  # except replay_buffer
 
 
-def game_run_multiagent(config, logger, tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
+def game_run_multiagent(config, logger, agentName, tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
         checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep):
 
-    agents = get_agents(config, logger, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
+    agents = get_agents(config, logger, agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
     tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
     logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
     replay_buffer, iterator, observers = get_replay_buffer(config, logger, tf_train_env, tf_agent_collect_data_spec)
 
     logger.info(f"checkpointPath_toSave={checkpointPath_toSave}")
-    checkpointers = []
+    checkpointers_toSave = []
     for ix, agent in enumerate(agents):
         checkpointPath = os.path.join(checkpointPath_toSave, f'{ix}')
         kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
-        if ix == 0:  # since there is only one replay_buffer for multi-agents
+        if reverb_checkpointPath is None and ix == 0:  # since there is only one replay_buffer for multi-agents
             kwargs['replay_buffer'] = replay_buffer
         checkpointer = common.Checkpointer(ckpt_dir=checkpointPath, max_to_keep=checkpoint_max_to_keep, **kwargs)
-        checkpointers.append(checkpointer)
-    reverb_client = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
+        checkpointers_toSave.append(checkpointer)
+    reverb_client_toSave = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
 
     tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_env_step_spec, ag.action_spec) for ag in agents]
     random_return = multiagent_compute_avg_return(tf_eval_env, policies=tf_random_policies)
@@ -618,9 +538,9 @@ def game_run_multiagent(config, logger, tf_train_env, tf_observation_spec, tf_ac
     game = MultiAgentGame(config)
     if config['isSummaryWriterUsed']:
         with summaryWriter.as_default():
-            game.run(logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers, reverb_client)
+            game.run(logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers_toSave, reverb_client_toSave)
     else:
-        game.run(logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers, reverb_client)
+        game.run(logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers_toSave, reverb_client_toSave)
 
 
 
@@ -719,7 +639,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
 
-    agent = get_agent(config, logger, tf_observation_spec, tf_action_spec, epsilon_greedy)  # one agent 
+    agent = get_agent(config, logger, agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)  # one agent 
     tf_agent_collect_data_spec = agent.collect_data_spec 
     logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
@@ -727,9 +647,12 @@ if __name__ == "__main__":
 
 
     logger.info(f"checkpointPath_toSave={checkpointPath_toSave}")
-    kwargs = {'agent': agent, 'policy': agent.policy, 'replay_buffer': replay_buffer, 'global_step': agent.train_step_counter}
-    checkpointer = common.Checkpointer(ckpt_dir=checkpointPath_toSave, max_to_keep=checkpoint_max_to_keep, **kwargs)
-    reverb_client = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
+    kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
+    if replay_bufferName != 'reverb':
+        kwargs['replay_buffer'] = replay_buffer
+    checkpointer_toSave = common.Checkpointer(ckpt_dir=checkpointPath_toSave, max_to_keep=checkpoint_max_to_keep, **kwargs)
+    # reverb_client = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
+    reverb_client_toSave = reverb.Client(f"localhost:{self.reverb_port}") if replay_bufferName == 'reverb' else None
 
 
     tf_random_policy = random_tf_policy.RandomTFPolicy(tf_env_step_spec, tf_action_spec)
@@ -757,7 +680,7 @@ if __name__ == "__main__":
     game = Game(config)
     if config['isSummaryWriterUsed']:
         with summaryWriter.as_default():
-            game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer, reverb_client)
+            game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
     else:
-        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer, reverb_client)
+        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
 
