@@ -118,7 +118,7 @@ class MultiAgentGame:
             agent.train_step_counter.assign(tf.Variable(self.train_step, dtype=tf.int64))  # sync to self.train_step
 
         # Evaluate the agent's policy once before training.
-        avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
+        avg_return = compute_avg_return_for_multiagent(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
         logger.info(f"before training, avg_return={avg_return}")
         returns = [avg_return]
 
@@ -131,7 +131,7 @@ class MultiAgentGame:
 
             # collect trajectories from env and fill in replay buffer
             for _ in range(self.num_env_steps_to_collect_per_time_step):
-                collect_trajectory(logger, tf_train_env, replay_buffer, agents=agents)
+                collect_trajectory_for_multiagent(logger, tf_train_env, replay_buffer, agents=agents)
 
             if time_step % self.num_time_steps_to_train == 0:
                 # trajectory, unused_info = next(iterator)
@@ -149,7 +149,7 @@ class MultiAgentGame:
                     before = after
 
             if time_step % self.num_time_steps_to_eval == 0:
-                avg_return = multiagent_compute_avg_return(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
+                avg_return = compute_avg_return_for_multiagent(tf_eval_env, agents=agents, num_episodes=self.num_episodes_to_eval)
                 logger.info(f'time_step={time_step} avg_return={avg_return:.3f}')
                 returns.append(avg_return)
 

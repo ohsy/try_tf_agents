@@ -337,7 +337,7 @@ def get_agents(agentName, tf_observation_spec, merged_tf_action_spec, epsilon_gr
                 name=f'action{ix}', 
                 minimum=0, 
                 maximum=mx))
-        agent = get_agent(config, logger, single_agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)
+        agent = get_agent(single_agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)
         agents.append(agent)
         agents[ix].initialize()
     logger.info(f"multiagent: number of agents = {len(agents)}")
@@ -534,25 +534,27 @@ def restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, rev
 
 
 def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
-        checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep):
+        checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep, replay_bufferName):
 
-    agents = get_agents(config, logger, agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
+    agents = get_agents(agentName, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
     tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
 
-    replay_buffer, iterator, observers = get_replay_buffer(config, logger, tf_train_env, tf_agent_collect_data_spec)
+    replay_buffer, iterator, observers = get_replay_buffer(tf_train_env, tf_agent_collect_data_spec)
 
     checkpointers_toSave = []
     for ix, agent in enumerate(agents):
         checkpointPath = os.path.join(checkpointPath_toSave, f'{ix}')
         kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
-        if reverb_checkpointPath is None and ix == 0:  # since there is only one replay_buffer for multi-agents
+        if replay_bufferName != 'reverb' and ix == 0:  # since there is only one replay_buffer for multi-agents
             kwargs['replay_buffer'] = replay_buffer
         checkpointer = common.Checkpointer(ckpt_dir=checkpointPath, max_to_keep=checkpoint_max_to_keep, **kwargs)
         checkpointers_toSave.append(checkpointer)
     reverb_client_toSave = reverb.Client(f"localhost:{self.reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
 
-    tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_env_step_spec, ag.action_spec) for ag in agents]
-    random_return = multiagent_compute_avg_return(tf_eval_env, policies=tf_random_policies)
+    tf_random_policy = random_tf_policy.RandomTFPolicy(tf_env_step_spec, agents[0].action_spec) 
+    # tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_env_step_spec, ag.action_spec) for ag in agents]
+    tf_random_policies = [tf_random_policy for ag in agents]
+    random_return = compute_avg_return_for_multiagent(tf_eval_env, policies=tf_random_policies)
     logger.info(f"random_policy avg_return={random_return:.3f}")
 
     if checkpointPath_toRestore is None:
@@ -663,8 +665,8 @@ if __name__ == "__main__":
 
     if 'multiagent' in agentName:
         #NOTE: game_run_multiagent() can be used actually since variables in __main__ can be seen in functions
-        game_run_multiagent(tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
-                checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep)
+        game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
+                checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep, replay_bufferName)
         sys.exit(0)
 
 
