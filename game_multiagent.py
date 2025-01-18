@@ -12,7 +12,7 @@ from tf_agents.trajectories import Trajectory, from_transition, PolicyStep
 from tf_agents.policies import random_tf_policy
 
 
-def collect_trajectory(logger, environment, replay_buffer, policies=None, agents=None):
+def collect_trajectory_for_multiagent(logger, environment, replay_buffer, policies=None, agents=None):
     assert not(policies is None and agents is None), f"either policies or agents must not be None"
     if policies is None:
         policies = []
@@ -60,7 +60,7 @@ def trajectories_from_merged_trajectory(merged, num_trajectories):
 
 # See also the metrics module for standard implementations of different metrics.
 # https://github.com/tensorflow/agents/tree/master/tf_agents/metrics
-def multiagent_compute_avg_return(environment, policies=None, agents=None, num_episodes=10):
+def compute_avg_return_for_multiagent(environment, policies=None, agents=None, num_episodes=10):
     assert not(policies is None and agents is None), f"either policies or agents must not be None"
     if policies is None:
         policies = []

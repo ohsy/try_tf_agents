@@ -75,6 +75,7 @@ class Game:
 
         env_step = py_train_env.reset()
         before = time.time()
+        train_step = 0
         for time_step in range(self.num_time_steps):
             self.train_step = train_step  # for epsilon_decay
 
