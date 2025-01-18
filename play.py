@@ -502,8 +502,9 @@ def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointP
     reverb replay_buffer is restored elsewhere
     """
     before_restore = time.time()
-    logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
-    logger.info(f"before restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    if replay_buffer is not None:
+        logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
+        logger.info(f"before restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
     logger.info(f"restoring from checkpointPath_toRestore={checkpointPath_toRestore}")
 
     if checkpointPath_toRestore is None:
@@ -514,7 +515,8 @@ def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointP
     checkpointer = common.Checkpointer(ckpt_dir=checkpointPath_toRestore, **kwargs)
     checkpointer.initialize_or_restore()
 
-    logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    if replay_buffer is not None:
+        logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
     logger.info(f"restoring time = {time.time() - before_restore:.3f}")
 
 
@@ -560,7 +562,7 @@ def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_
     if checkpointPath_toRestore is None:
         fill_replay_buffer_for_multiagent(tf_train_env, tf_random_policies, replay_buffer, num_env_steps_to_collect_init)
     else:
-        restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer)
+        restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replay_buffer)
         if fill_after_restore == 'true':
             fill_replay_buffer_for_multiagent(tf_train_env, agent.collect_policy, replay_buffer, num_env_steps_to_collect_init)
 
