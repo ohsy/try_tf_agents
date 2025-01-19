@@ -660,7 +660,7 @@ if __name__ == "__main__":
                     'DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], 
             help="environment wrapper: 'history' adds observation and action history to the environment's observations.")
-    parser.add_argument('-a', '--agent', type=str, choices=['BC','DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC','BC','CQL_SAC'])
     parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'], help="'reverb' must be used with driver 'py'")
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode','none']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -679,8 +679,6 @@ if __name__ == "__main__":
     agentName = config["agent"] if args.agent is None else args.agent
     replay_bufferName = config["replay_buffer"] if args.replay_buffer is None else args.replay_buffer
     driverName = config["driver"] if args.driver is None else args.driver
-    if replay_bufferName == 'reverb':
-        assert driverName == 'py', "replay_buffer 'reverb' must be used with driver 'py'"
     checkpointPath_toRestore = args.checkpoint_path
     fill_after_restore = args.fill_after_restore
     reverb_checkpointPath_toRestore = args.reverb_checkpoint_path
@@ -688,6 +686,11 @@ if __name__ == "__main__":
     num_env_steps_to_collect_init = config['num_env_steps_to_collect_init'] if args.num_env_steps_to_collect_init is None else args.num_env_steps_to_collect_init
     epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
     reverb_port = config['reverb_port'] if args.reverb_port is None else args.reverb_port
+    if replay_bufferName == 'reverb':
+        assert driverName == 'py', "replay_buffer 'reverb' must be used with driver 'py'"
+    if agentName in ['BC','CQL_SAC']:
+        assert not (checkpointPath_toRestore is None and reverb_checkpointPath_toRestore is None), \
+                "checkpoint_path or reverb_checkpoint_path must not be None for agent BC or CQL_SAC"
 
     date_time = datetime.now().strftime('%m%d_%H%M%S')
     resultPath = f"{config['resultPath']}/{envName}_{agentName}_{date_time}"
