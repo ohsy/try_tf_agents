@@ -50,6 +50,10 @@ class Game:
         self.num_episodes_to_eval = config['num_episodes_to_eval']
         self.train_step = 0  # for epsilon decay
 
+        self.num_epochs = config['num_epochs']
+        self.batch_size = config['batch_size']
+        self.num_batches = self.replay_buffer.num_frames() // self.batch_size
+
 
     def save(self, logger, agent, checkpointer, reverb_client):
         checkpointer.save(agent.train_step_counter)
@@ -112,4 +116,19 @@ class Game:
 
         after_all = time.time()
         logger.info(f"total_time={after_all-before_all:.3f}")
+
+    def train_and_save_agent(self, logger, agent, replay_buffer, iterator, checkpointer, reverb_client):
+        before = time.time()
+        for epoch in range(self.num_epochs):
+            logger.info(f'epoch={epoch}')
+            for time_step in range(self.num_batches):
+                trajectory, unused_info = iterator.get_next()  # trajectory as tensor
+                logger.debug(f"trajectory={trajectory}")
+                loss_info = agent.train(trajectory)
+                train_loss = loss_info.loss
+                if time_step % self.num_time_steps_to_log == 0:
+                    after = time.time()
+                    logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
+                    before = after
+        self.save(logger, agent, checkpointer, reverb_client)
 
