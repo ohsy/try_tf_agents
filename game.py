@@ -52,7 +52,6 @@ class Game:
 
         self.num_epochs = config['num_epochs']
         self.batch_size = config['batch_size']
-        self.num_batches = self.replay_buffer.num_frames() // self.batch_size
 
 
     def save(self, logger, agent, checkpointer, reverb_client):
@@ -115,13 +114,16 @@ class Game:
         self.save(logger, agent, checkpointer, reverb_client)  # once more in last time
 
         after_all = time.time()
-        logger.info(f"total_time={after_all-before_all:.3f}")
+        logger.info(f"run() total_time={after_all-before_all:.3f}")
 
-    def train_and_save_agent(self, logger, agent, replay_buffer, iterator, checkpointer, reverb_client):
-        before = time.time()
+    def train_and_save_agent(self, logger, agent, replay_buffer, dataset, iterator, checkpointer, reverb_client):
+        before_all = before = time.time()
+        num_batches = replay_buffer.num_frames() // self.batch_size
         for epoch in range(self.num_epochs):
             logger.info(f'epoch={epoch}')
-            for time_step in range(self.num_batches):
+            # dataset = dataset.shuffle(dataset.cardinality())
+            # iterator = iter(dataset)
+            for time_step in range(num_batches):
                 trajectory, unused_info = iterator.get_next()  # trajectory as tensor
                 logger.debug(f"trajectory={trajectory}")
                 loss_info = agent.train(trajectory)
@@ -131,4 +133,7 @@ class Game:
                     logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
                     before = after
         self.save(logger, agent, checkpointer, reverb_client)
+
+        after_all = time.time()
+        logger.info(f"train_and_save_agent() total_time={after_all-before_all:.3f}")
 

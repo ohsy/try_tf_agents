@@ -33,6 +33,8 @@ from tf_agents.agents.categorical_dqn import categorical_dqn_agent
 from tf_agents.agents.ddpg import ddpg_agent, actor_network, critic_network
 from tf_agents.agents.td3 import td3_agent
 from tf_agents.agents.sac import sac_agent, tanh_normal_projection_network
+from tf_agents.agents.behavioral_cloning import behavioral_cloning_agent
+from tf_agents.agents.cql import cql_sac_agent
 from tf_agents.environments import suite_gym, tf_py_environment, wrappers
 # from tf_agents.environments import suite_pybullet
 from tf_agents.networks import sequential, actor_distribution_network, q_network, categorical_q_network
@@ -200,7 +202,7 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             tf_action_spec,
             cloning_network=q_net,
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-            loss_fn=common.element_wise_squared_loss,
+            # loss_fn=common.element_wise_squared_loss,
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=tf.Variable(0, dtype=tf.int64))
@@ -448,16 +450,21 @@ def get_replay_buffer(agentName, tf_train_env, agent_collect_data_spec, reverb_p
         observers = [rb_observer]
 
     if agentName in ['BC','CQL_SAC']:
-        dataset = replay_buffer.as_dataset(sample_batch_size=batch_size, single_deterministic_pass=True))
+        dataset = replay_buffer.as_dataset(
+                num_parallel_calls=3,
+                sample_batch_size=batch_size)
+                # num_steps=1
+                # single_deterministic_pass=True)
     else:
         dataset = replay_buffer.as_dataset(
                 num_parallel_calls=3,
-                sample_batch_size=batch_size,
-                num_steps=2).prefetch(3)
+                sample_batch_size=batch_size,   # adds outer dim like [64,...]
+                num_steps=2                     # adds outer dim like [64, 2, ...]
+                ).prefetch(3)
     iterator = iter(dataset)
 
     logger.info(f"ending get_replay_buffer(), replay_buffer.num_frames()={replay_buffer.num_frames()}")
-    return replay_buffer, iterator, observers
+    return replay_buffer, dataset, iterator, observers
 
 
 def fill_replay_buffer(driverName, py_train_env, tf_train_env, policy, replay_buffer, observers, num_env_steps_to_collect_init):
@@ -466,6 +473,8 @@ def fill_replay_buffer(driverName, py_train_env, tf_train_env, policy, replay_bu
     """
     before_fill = time.time()
     logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
+    logger.info(f"starting fill_replay_buffer(), replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    replay_buffer.clear()
     logger.info(f"before filling, replay_buffer.num_frames()={replay_buffer.num_frames()}")
     # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
@@ -597,7 +606,7 @@ def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_
     agents = get_agents(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
     tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
 
-    replay_buffer, iterator, observers = get_replay_buffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
+    replay_buffer, dataset, iterator, observers = get_replay_buffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
 
     checkpointers_toSave = []
     for ix, agent in enumerate(agents):
@@ -740,7 +749,7 @@ if __name__ == "__main__":
     tf_agent_collect_data_spec = agent.collect_data_spec 
     logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
-    replay_buffer, iterator, observers = get_replay_buffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
+    replay_buffer, dataset, iterator, observers = get_replay_buffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
 
     kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
     if replay_bufferName != 'reverb':
@@ -766,9 +775,9 @@ if __name__ == "__main__":
     if agentName in ['BC','CQL_SAC']:
         if config['isSummaryWriterUsed']:
             with summaryWriter.as_default():
-                game.train_and_save_agent(logger, agent, replay_buffer, iterator, checkpointer_toSave, reverb_client)
+                game.train_and_save_agent(logger, agent, replay_buffer, dataset, iterator, checkpointer_toSave, reverb_client_toSave)
         else:
-            game.train_and_save_agent(logger, agent, replay_buffer, iterator, checkpointer_toSave, reverb_client)
+            game.train_and_save_agent(logger, agent, replay_buffer, dataset, iterator, checkpointer_toSave, reverb_client_toSave)
     else:
         if config['isSummaryWriterUsed']:
             with summaryWriter.as_default():
