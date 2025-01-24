@@ -39,13 +39,14 @@ def compute_avg_return(environment, policy, num_episodes=10):
 
 
 class Game:
-    def __init__(self, config):
+    def __init__(self, config, isTrainOnly=False):
         self.num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
         self.reverb_port = config['reverb_port']
         self.num_time_steps = config['num_time_steps'] if config['num_time_steps'] > 0 else sys.maxsize
+        self.num_time_steps_to_collect = config['num_time_steps_to_collect'] if not isTrainOnly else sys.maxsize
+        self.num_time_steps_to_train = config['num_time_steps_to_train']
         self.num_time_steps_to_log = config['num_time_steps_to_log']  # max((int) (self.num_time_steps / config['num_logs']), 1)
         self.num_time_steps_to_eval = config['num_time_steps_to_eval']  # max((int) (self.num_time_steps / config['num_evals']), 1)
-        self.num_time_steps_to_train = config['num_time_steps_to_train']
         self.num_train_steps_to_save = config['num_train_steps_to_save']
         self.num_episodes_to_eval = config['num_episodes_to_eval']
         self.train_step = 0  # for epsilon decay
@@ -82,14 +83,15 @@ class Game:
         for time_step in range(self.num_time_steps):
             self.train_step = train_step  # for epsilon_decay
 
-            # collect trajectories from env and fill in replay buffer
-            if driver is None:
-                for _ in range(self.num_env_steps_to_collect_per_time_step):
-                    collect_trajectory(logger, tf_train_env, replay_buffer, agent.collect_policy)
-            elif driver.__class__.__name__ in ['PyDriver']:
-                env_step, _ = driver.run(env_step)
-            elif driver.__class__.__name__ in ['DynamicStepDriver','DynamicEpisodeDriver']:
-                driver.run()
+            # collect trajectories from env and fill replay buffer
+            if time_step % self.num_time_steps_to_collect == 0:
+                if driver is None:
+                    for _ in range(self.num_env_steps_to_collect_per_time_step):
+                        collect_trajectory(logger, tf_train_env, replay_buffer, agent.collect_policy)
+                elif driver.__class__.__name__ in ['PyDriver']:
+                    env_step, _ = driver.run(env_step)
+                elif driver.__class__.__name__ in ['DynamicStepDriver','DynamicEpisodeDriver']:
+                    driver.run()
 
             if time_step % self.num_time_steps_to_train == 0:
                 # trajectory, unused_info = next(iterator)
@@ -116,24 +118,22 @@ class Game:
         after_all = time.time()
         logger.info(f"run() total_time={after_all-before_all:.3f}")
 
+    """
     def train_and_save_agent(self, logger, agent, replay_buffer, dataset, iterator, checkpointer, reverb_client):
         before_all = before = time.time()
+        agent.train_step_counter.assign(tf.Variable(0, dtype=tf.int64))
         num_batches = replay_buffer.num_frames() // self.batch_size
-        for epoch in range(self.num_epochs):
-            logger.info(f'epoch={epoch}')
-            # dataset = dataset.shuffle(dataset.cardinality())
-            # iterator = iter(dataset)
-            for time_step in range(num_batches):
-                trajectory, unused_info = iterator.get_next()  # trajectory as tensor
-                logger.debug(f"trajectory={trajectory}")
-                loss_info = agent.train(trajectory)
-                train_loss = loss_info.loss
-                if time_step % self.num_time_steps_to_log == 0:
-                    after = time.time()
-                    logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
-                    before = after
+        for time_steps  in range(self.num_time_steps):
+            trajectory, unused_info = iterator.get_next()  # trajectory as tensor
+            logger.debug(f"trajectory={trajectory}")
+            loss_info = agent.train(trajectory)
+            train_loss = loss_info.loss
+            if time_step % self.num_time_steps_to_log == 0:
+                after = time.time()
+                logger.info(f'time_step={time_step} loss={train_loss:.3f} time={after-before:.3f}')
+                before = after
         self.save(logger, agent, checkpointer, reverb_client)
 
         after_all = time.time()
         logger.info(f"train_and_save_agent() total_time={after_all-before_all:.3f}")
-
+    """

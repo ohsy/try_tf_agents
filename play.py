@@ -208,6 +208,44 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             train_step_counter=tf.Variable(0, dtype=tf.int64))
 
     elif agentName in ["CQL_SAC"]:
+        # cf. https://github.com/tensorflow/agents/blob/master/tf_agents/agents/cql/cql_sac_agent.py
+        # actor_fc_layer_params = [256, 256]
+        # critic_joint_fc_layer_params = [256, 256, 256]
+        # Agent params
+        # batch_size: int = 256
+        bc_steps: int = 0
+        actor_learning_rate: types.Float = 3e-5
+        critic_learning_rate: types.Float = 3e-4
+        alpha_learning_rate: types.Float = 3e-4
+        reward_scale_factor: types.Float = 1.0
+        cql_alpha_learning_rate: types.Float = 3e-4
+        cql_alpha: types.Float = 5.0
+        cql_tau: types.Float = 10.0
+        num_cql_samples: int = 10
+        reward_noise_variance: Union[types.Float, tf.Variable] = 0.0
+        include_critic_entropy_term: bool = False
+        use_lagrange_cql_alpha: bool = True
+        log_cql_alpha_clipping: Optional[Tuple[types.Float, types.Float]] = None
+        softmax_temperature: types.Float = 1.0
+        # Data and Reverb Replay Buffer params
+        reward_shift: types.Float = 0.0
+        action_clipping: Optional[Tuple[types.Float, types.Float]] = None
+        data_shuffle_buffer_size: int = 100
+        data_prefetch: int = 10
+        data_take: Optional[int] = None
+        pad_end_of_episodes: bool = False
+        reverb_port: Optional[int] = None
+        min_rate_limiter: int = 1
+        # Others
+        policy_save_interval: int = 10000
+        eval_interval: int = 10000
+        summary_interval: int = 1000
+        learner_iterations_per_call: int = 1
+        eval_episodes: int = 10
+        debug_summaries: bool = False
+        summarize_grads_and_vars: bool = False
+        seed: Optional[int] = None
+        
         actor_net = actor_distribution_network.ActorDistributionNetwork(
             tf_observation_spec, 
             tf_action_spec,
@@ -224,6 +262,35 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
         agent = cql_sac_agent.CqlSacAgent(
             tf_env_step_spec,
             tf_action_spec,
+            actor_network=actor_net,
+            critic_network=critic_net,
+            actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
+            critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
+            alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
+            cql_alpha=cql_alpha,
+            num_cql_samples=num_cql_samples,
+            include_critic_entropy_term=include_critic_entropy_term,
+            use_lagrange_cql_alpha=use_lagrange_cql_alpha,
+            cql_alpha_learning_rate=cql_alpha_learning_rate,
+            target_update_tau=5e-3,
+            target_update_period=1,
+            random_seed=seed,
+            cql_tau=cql_tau,
+            reward_noise_variance=reward_noise_variance,
+            num_bc_steps=bc_steps,
+            td_errors_loss_fn=tf.math.squared_difference,
+            gamma=0.99,
+            reward_scale_factor=reward_scale_factor,
+            gradient_clipping=None,
+            log_cql_alpha_clipping=log_cql_alpha_clipping,
+            softmax_temperature=softmax_temperature,
+            debug_summaries=debug_summaries,
+            summarize_grads_and_vars=summarize_grads_and_vars,
+            train_step_counter=train_utils.create_train_step(),)
+        """
+        agent = cql_sac_agent.CqlSacAgent(
+            tf_env_step_spec,
+            tf_action_spec,
             critic_network=critic_net,
             actor_network=actor_net,
             # actor_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
@@ -233,18 +300,20 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
             alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
             # actor_policy_ctor=NormalizedActorPolicy,  # induces error of Inconsistent dtypes or shapes between tensors and tensor_spec.
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
+            # target_update_tau=target_update_tau,
+            # target_update_period=target_update_period,
             td_errors_loss_fn=tf.math.squared_difference,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
+            # gamma=gamma,
+            # reward_scale_factor=reward_scale_factor,
             debug_summaries=True,
             summarize_grads_and_vars=True,
             train_step_counter=train_utils.create_train_step(),
+            # from test py in tf-agents github
             cql_alpha=5.0,
             num_cql_samples=1,
             include_critic_entropy_term=False,
             use_lagrange_cql_alpha=False,)
+        """
 
     elif agentName in ["DQN"]:
         q_net = q_network.QNetwork(
@@ -449,11 +518,17 @@ def get_replay_buffer(agentName, tf_train_env, agent_collect_data_spec, reverb_p
 
         observers = [rb_observer]
 
-    if agentName in ['BC','CQL_SAC']:
+    if agentName in ['BC']: # All of the Tensors in `value` must have one outer dimensions: must have shape `[B] + spec.shape`.
         dataset = replay_buffer.as_dataset(
                 num_parallel_calls=3,
                 sample_batch_size=batch_size)
                 # num_steps=1
+                # single_deterministic_pass=True)
+    elif agentName in ['CQL_SAC']: # All of the Tensors in `value` must have two outer dimensions: must have shape `[B, T] + spec.shape`. 
+        dataset = replay_buffer.as_dataset(
+                num_parallel_calls=3,
+                sample_batch_size=batch_size,
+                num_steps=2)
                 # single_deterministic_pass=True)
     else:
         dataset = replay_buffer.as_dataset(
@@ -561,7 +636,7 @@ def get_driver(py_train_env, tf_train_env, agent_collect_policy, observers):
     return driver
 
 
-def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer=None):
+def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer=None, fill_after_restore=False):
     """
     restore agent and replay buffer if checkpoints are given
     reverb replay_buffer is restored elsewhere
@@ -575,7 +650,7 @@ def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointP
     if checkpointPath_toRestore is None:
         return
     kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
-    if reverb_checkpointPath_toRestore is None and replay_buffer is not None:  
+    if reverb_checkpointPath_toRestore is None and replay_buffer is not None and not fill_after_restore:  
         kwargs['replay_buffer'] = replay_buffer
     checkpointer = common.Checkpointer(ckpt_dir=checkpointPath_toRestore, **kwargs)
     checkpointer.initialize_or_restore()
@@ -595,7 +670,7 @@ def restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, rev
     for ix, agent in enumerate(agents):
         ckptPath = os.path.join(checkpointPath_toRestore, f'{ix}')
         if ix == 0: 
-            restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent, replay_buffer)
+            restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent, replay_buffer, fill_after_restore)
         else:
             restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent)  # excluding replay_buffer
 
@@ -627,7 +702,7 @@ def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_
     if checkpointPath_toRestore is None:
         fill_replay_buffer_for_multiagent(tf_train_env, tf_random_policies, replay_buffer, num_env_steps_to_collect_init)
     else:
-        restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replay_buffer)
+        restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replay_buffer, fill_after_restore)
         if fill_after_restore == 'true':
             fill_replay_buffer_for_multiagent(tf_train_env, agent.collect_policy, replay_buffer, num_env_steps_to_collect_init)
 
@@ -765,23 +840,18 @@ if __name__ == "__main__":
     if checkpointPath_toRestore is None:
         fill_replay_buffer(driverName, py_train_env, tf_train_env, tf_random_policy, replay_buffer, observers, num_env_steps_to_collect_init)
     else:
-        restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer)
+        restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer, fill_after_restore)
         if fill_after_restore == 'true':
             fill_replay_buffer(driverName, py_train_env, tf_train_env, agent.collect_policy, replay_buffer, observers, num_env_steps_to_collect_init)
 
     driver = get_driver(py_train_env, tf_train_env, agent.collect_policy, observers)
 
-    game = Game(config)
-    if agentName in ['BC','CQL_SAC']:
-        if config['isSummaryWriterUsed']:
-            with summaryWriter.as_default():
-                game.train_and_save_agent(logger, agent, replay_buffer, dataset, iterator, checkpointer_toSave, reverb_client_toSave)
-        else:
-            game.train_and_save_agent(logger, agent, replay_buffer, dataset, iterator, checkpointer_toSave, reverb_client_toSave)
-    else:
-        if config['isSummaryWriterUsed']:
-            with summaryWriter.as_default():
-                game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
-        else:
+    game = Game(config, isTrainOnly=True) if agentName in ['BC','CQL_SAC'] \
+            else Game(config)
+
+    if config['isSummaryWriterUsed']:
+        with summaryWriter.as_default():
             game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
+    else:
+        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
 
