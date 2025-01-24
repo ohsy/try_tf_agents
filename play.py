@@ -287,33 +287,6 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             debug_summaries=debug_summaries,
             summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_utils.create_train_step(),)
-        """
-        agent = cql_sac_agent.CqlSacAgent(
-            tf_env_step_spec,
-            tf_action_spec,
-            critic_network=critic_net,
-            actor_network=actor_net,
-            # actor_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
-            # critic_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
-            # alpha_optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
-            actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
-            critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
-            alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
-            # actor_policy_ctor=NormalizedActorPolicy,  # induces error of Inconsistent dtypes or shapes between tensors and tensor_spec.
-            # target_update_tau=target_update_tau,
-            # target_update_period=target_update_period,
-            td_errors_loss_fn=tf.math.squared_difference,
-            # gamma=gamma,
-            # reward_scale_factor=reward_scale_factor,
-            debug_summaries=True,
-            summarize_grads_and_vars=True,
-            train_step_counter=train_utils.create_train_step(),
-            # from test py in tf-agents github
-            cql_alpha=5.0,
-            num_cql_samples=1,
-            include_critic_entropy_term=False,
-            use_lagrange_cql_alpha=False,)
-        """
 
     elif agentName in ["DQN"]:
         q_net = q_network.QNetwork(
