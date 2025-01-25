@@ -30,11 +30,12 @@
 # mv o_DaisoSokcho_SAC_num_init_collect_steps_2000.* o_DaisoSokcho_SAC_num_init_collect_steps_2000
 # mv o_DaisoSokcho_SAC_num_init_collect_steps_2000_* o_DaisoSokcho_SAC_num_init_collect_steps_2000
 
-python3 get_avg_returns.py 5 o_DaisoSokcho_SAC_num_init_collect_steps_5000
-python3 plot_csv.py o_DaisoSokcho_SAC_num_init_collect_steps_5000
-mkdir o_DaisoSokcho_SAC_num_init_collect_steps_5000
-mv o_DaisoSokcho_SAC_num_init_collect_steps_5000.* o_DaisoSokcho_SAC_num_init_collect_steps_5000
-mv o_DaisoSokcho_SAC_num_init_collect_steps_5000_* o_DaisoSokcho_SAC_num_init_collect_steps_5000
+python3 get_avg_returns.py 5 o_DaisoSokcho_SAC
+python3 plot_csv.py o_DaisoSokcho_SAC
+mkdir o_DaisoSokcho_SAC
+mv o_DaisoSokcho_SAC.* o_DaisoSokcho_SAC
+mv o_DaisoSokcho_SAC_* o_DaisoSokcho_SAC
+cp config.json playbatch*.sh postprocess.sh
 
 # python3 get_avg_returns.py 5 o_DaisoSokcho_SAC_num_init_collect_steps_10000
 # python3 plot_csv.py o_DaisoSokcho_SAC_num_init_collect_steps_10000
