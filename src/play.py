@@ -724,7 +724,7 @@ def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_
         if fill_after_restore == 'true':
             fill_replaybuffer_for_multiagent(tf_train_env, agent.collect_policy, replaybuffer, num_env_steps_to_collect_init)
 
-    game = MultiAgentGame(config)
+    game = MultiAgentGame(config, num_time_steps)
     if config['isSummaryWriterUsed']:
         with summaryWriter.as_default():
             game.run(logger, tf_train_env, tf_eval_env, agents, replaybuffer, iterator, checkpointers_toSave, reverb_client_toSave)
@@ -742,7 +742,8 @@ if __name__ == "__main__":
     #   if (not tf.test.is_built_with_cuda()) or len(tf.config.list_physical_devices('GPU')) == 0:
     #       os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-    with open('./config.json') as f:
+    projectPath = "/home/soh/work/try_tf_agents"  # TEMP
+    with open(os.path.join(projectPath,"src/config.json")) as f:
         config = json.load(f)
     projectPath = config['projectPath']  # absolute path
 
@@ -772,6 +773,7 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path," + 
             " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
+    parser.add_argument('-t', '--num_time_steps', type=int, help="number of time-steps")
     parser.add_argument('-i', '--num_env_steps_to_collect_init', type=int, help="number of initial collect steps")
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     parser.add_argument('-o', '--reverb_port', type=int, help="reverb port for reverb.Client and Server")
@@ -787,6 +789,8 @@ if __name__ == "__main__":
     fill_after_restore = args.fill_after_restore
     reverb_checkpointPath_toRestore = args.reverb_checkpoint_path  # absolute path
     num_actions = config['num_actions'] if args.num_actions is None else args.num_actions
+    num_time_steps = config['num_time_steps'] if args.num_time_steps is None else args.num_time_steps
+    num_time_steps = num_time_steps if num_time_steps > 0 else sys.maxsize
     num_env_steps_to_collect_init = config['num_env_steps_to_collect_init'] if args.num_env_steps_to_collect_init is None else args.num_env_steps_to_collect_init
     epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
     reverb_port = config['reverb_port'] if args.reverb_port is None else args.reverb_port
@@ -871,8 +875,8 @@ if __name__ == "__main__":
 
     driver = get_driver(py_train_env, tf_train_env, agent.collect_policy, observers)
 
-    game = Game(config, isTrainOnly=True) if agentName in ['BC','CQL_SAC'] \
-            else Game(config)
+    game = Game(config, num_time_steps, isTrainOnly=True) if agentName in ['BC','CQL_SAC'] \
+            else Game(config, num_time_steps)
 
     if config['isSummaryWriterUsed']:
         with summaryWriter.as_default():

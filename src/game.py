@@ -39,10 +39,10 @@ def compute_avg_return(environment, policy, num_episodes=10):
 
 
 class Game:
-    def __init__(self, config, isTrainOnly=False):
+    def __init__(self, config, num_time_steps, isTrainOnly=False):
         self.num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
         self.reverb_port = config['reverb_port']
-        self.num_time_steps = config['num_time_steps'] if config['num_time_steps'] > 0 else sys.maxsize
+        self.num_time_steps = num_time_steps
         self.num_time_steps_to_collect = config['num_time_steps_to_collect'] if not isTrainOnly else sys.maxsize
         self.num_time_steps_to_train = config['num_time_steps_to_train']
         self.num_time_steps_to_log = config['num_time_steps_to_log']  # max((int) (self.num_time_steps / config['num_logs']), 1)

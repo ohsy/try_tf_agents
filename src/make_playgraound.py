@@ -6,6 +6,7 @@ import pathlib
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="argpars parser used")
+    parser.add_argument('-y', '--playground_index', type=int, help="playground index")
     parser.add_argument('-s', '--num_shellscripts', type=int, help="number of shell scripts")
 
     parser.add_argument('-e', '--environment', type=str,
@@ -22,19 +23,24 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path," +
             " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
+    parser.add_argument('-t', '--num_time_steps', type=int, help="number of time-steps")
     parser.add_argument('-i', '--num_env_steps_to_collect_init', type=int, help="number of initial collect steps")
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     parser.add_argument('-o', '--reverb_port', type=int, help="reverb port for reverb.Client and Server")
     parser.add_argument('-l', '--replaybuffer_max_length', type=int, help="replaybuffer max length")
     args = parser.parse_args()
 
+    playground_index = args.playground_index
+    num_shellscripts = args.num_shellscripts
 
     project_path = "/home/soh/work/try_tf_agents"
     src_path = "/home/soh/work/try_tf_agents/src"
-    playground_path = os.path.join(project_path, "workspace/playground1")
+    playground_path = os.path.join(project_path, f"workspace/playground{playground_index}")
+    if args.checkpoint_path is not None:
+        checkpoint_path = os.path.join(project_path, args.checkpoint_path)
 
-    num_shellscripts = 5
     output_prefix = f"o_{args.environment}_{args.agent}" \
+            f"_num_time_steps_{args.num_time_steps}" \
             f"_num_env_steps_to_collect_init_{args.num_env_steps_to_collect_init}" \
             f"_replaybuffer_max_length_{args.replaybuffer_max_length}"
 
@@ -43,27 +49,33 @@ if __name__ == "__main__":
     with open(master_sh_path,'w') as f:
         f.write(f"#!/bin/bash\n\n")
         for idx in range(num_shellscripts):
-            f.write(f"playbatch{idx}.sh\n")
+            f.write(f"./playbatch{idx}.sh\n")
     os.chmod(master_sh_path, 0o775)
 
     for idx in range(num_shellscripts):
         sub_sh_path = os.path.join(playground_path, f"playbatch{idx}.sh")
         with open(sub_sh_path,'w') as f:
             f.write(f"#!/bin/bash\n\n")
-            instruction = f"python3 {src_path}/play.py" \
+            f.write(f"cd {src_path}\n")
+            instruction = f"python3 play.py" \
                     + f" -e {args.environment}" \
                     + f" -a {args.agent}" \
+                    + f" -t {args.num_time_steps}" \
                     + f" -i {args.num_env_steps_to_collect_init}" \
-                    + f" -l {args.replaybuffer_max_length}" \
-                    + f" &> {output_prefix}_{idx} &"
+                    + f" -l {args.replaybuffer_max_length}"
+            if args.checkpoint_path is not None:
+                instruction += f" -c {checkpoint_path}"
+            instruction += f" &> {playground_path}/{output_prefix}_{idx} &"
             f.write(f"{instruction}\n")
         os.chmod(sub_sh_path, 0o775)
 
     postprocess_sh_path = os.path.join(playground_path, f"postprocess.sh")
     with open(postprocess_sh_path,'w') as f:
         f.write(f"#!/bin/bash\n\n")
-        f.write(f"python3 {src_path}/get_avg_returns.py {num_shellscripts} {output_prefix}\n")
-        f.write(f"python3 {src_path}/plot_csv.py {output_prefix}\n")
+        f.write(f"cd {src_path}\n")
+        f.write(f"python3 get_avg_returns.py {num_shellscripts} {playground_path}/{output_prefix}\n")
+        f.write(f"python3 plot_csv.py {playground_path}/{output_prefix}\n")
+        f.write(f"cd {playground_path}\n")
         f.write(f"mkdir {output_prefix}\n")
         f.write(f"mv {output_prefix}.* {output_prefix}\n")
         f.write(f"mv {output_prefix}_* {output_prefix}\n")
