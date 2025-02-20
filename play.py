@@ -25,7 +25,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import reverb
-import mujoco
+import mujoco_py
 import tensorflow as tf
 
 from tf_agents.agents.dqn import dqn_agent
@@ -481,49 +481,49 @@ def get_agents(agentName, tf_env_step_spec, tf_observation_spec, merged_tf_actio
     return agents
 
 
-def get_replay_buffer(agentName, tf_train_env, agent_collect_data_spec, reverb_port, isPerUsed):
+def get_replaybuffer(agentName, tf_train_env, agent_collect_data_spec, reverb_port, isPerUsed):
     batch_size = config['batch_size']
-    replay_buffer_max_length = config['replay_buffer_max_length']
+    replaybuffer_max_length = config['replaybuffer_max_length']
     # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     table_name = 'uniform_table'
 
-    if replay_bufferName in ['tf_uniform']:
-        replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+    if replaybufferName in ['tf_uniform']:
+        replaybuffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             data_spec=agent_collect_data_spec,
             batch_size=tf_train_env.batch_size,  # adding batch_size, not sampling
-            max_length=replay_buffer_max_length)
-        observers=[replay_buffer.add_batch]
-    elif replay_bufferName in ['reverb']:
-        replay_buffer_signature = tensor_spec.from_spec(agent_collect_data_spec)
-        logger.info(f"replay_buffer_signature={replay_buffer_signature}")
-        replay_buffer_signature = tensor_spec.add_outer_dim(replay_buffer_signature)
-        logger.info(f"after adding outer dim, replay_buffer_signature={replay_buffer_signature}")
+            max_length=replaybuffer_max_length)
+        observers=[replaybuffer.add_batch]
+    elif replaybufferName in ['reverb']:
+        replaybuffer_signature = tensor_spec.from_spec(agent_collect_data_spec)
+        logger.info(f"replaybuffer_signature={replaybuffer_signature}")
+        replaybuffer_signature = tensor_spec.add_outer_dim(replaybuffer_signature)
+        logger.info(f"after adding outer dim, replaybuffer_signature={replaybuffer_signature}")
 
         table = reverb.Table(
             table_name,
-            max_size=replay_buffer_max_length,
+            max_size=replaybuffer_max_length,
             # sampler=(reverb.selectors.Prioritized() if isPerUsed else reverb.selectors.Uniform()),
             sampler=(reverb.libpybind.PrioritizedSelector(priority_exponent=0.8) if isPerUsed else reverb.selectors.Uniform()),
             remover=reverb.selectors.Fifo(),
             rate_limiter=reverb.rate_limiters.MinSize(1),
-            signature=replay_buffer_signature)
+            signature=replaybuffer_signature)
 
         if checkpointPath_toRestore is not None and reverb_checkpointPath_toRestore is not None:  # restore from checkpoint
-            logger.info(f"restoring reverb replay_buffer from reverb_checkpointPath_toRestore={reverb_checkpointPath_toRestore}")
+            logger.info(f"restoring reverb replaybuffer from reverb_checkpointPath_toRestore={reverb_checkpointPath_toRestore}")
             reverb_checkpointer = reverb.checkpointers.DefaultCheckpointer(path=reverb_checkpointPath_toRestore)
             reverb_server = reverb.Server([table], checkpointer=reverb_checkpointer, port=reverb_port)
         else:
             reverb_server = reverb.Server([table], port=reverb_port)
         # reverb_client = reverb.Client(f"localhost:{reverb_port}")
 
-        replay_buffer = reverb_replay_buffer.ReverbReplayBuffer(
+        replaybuffer = reverb_replay_buffer.ReverbReplayBuffer(
             agent_collect_data_spec,
             table_name=table_name,
             sequence_length=2,
             local_server=reverb_server)
 
         rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
-            replay_buffer.py_client,
+            replaybuffer.py_client,
             table_name,
             sequence_length=2,
             stride_length=1)
@@ -531,38 +531,38 @@ def get_replay_buffer(agentName, tf_train_env, agent_collect_data_spec, reverb_p
         observers = [rb_observer]
 
     if agentName in ['BC']: # All of the Tensors in `value` must have one outer dimensions: must have shape `[B] + spec.shape`.
-        dataset = replay_buffer.as_dataset(
+        dataset = replaybuffer.as_dataset(
                 num_parallel_calls=3,
                 sample_batch_size=batch_size)
                 # num_steps=1
                 # single_deterministic_pass=True)
     elif agentName in ['CQL_SAC']: # All of the Tensors in `value` must have two outer dimensions: must have shape `[B, T] + spec.shape`. 
-        dataset = replay_buffer.as_dataset(
+        dataset = replaybuffer.as_dataset(
                 num_parallel_calls=3,
                 sample_batch_size=batch_size,
                 num_steps=2)
                 # single_deterministic_pass=True)
     else:
-        dataset = replay_buffer.as_dataset(
+        dataset = replaybuffer.as_dataset(
                 num_parallel_calls=3,
                 sample_batch_size=batch_size,   # adds outer dim like [64,...]
                 num_steps=2                     # adds outer dim like [64, 2, ...]
                 ).prefetch(3)
     iterator = iter(dataset)
 
-    logger.info(f"ending get_replay_buffer(), replay_buffer.num_frames()={replay_buffer.num_frames()}")
-    return replay_buffer, dataset, iterator, observers
+    logger.info(f"ending get_replaybuffer(), replaybuffer.num_frames()={replaybuffer.num_frames()}")
+    return replaybuffer, dataset, iterator, observers
 
 
-def fill_replay_buffer(driverName, py_train_env, tf_train_env, policy, replay_buffer, observers, num_env_steps_to_collect_init):
+def fill_replaybuffer(driverName, py_train_env, tf_train_env, policy, replaybuffer, observers, num_env_steps_to_collect_init):
     """
     collect env steps with policy and save to the replay buffer.
     """
     before_fill = time.time()
-    logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
-    logger.info(f"starting fill_replay_buffer(), replay_buffer.num_frames()={replay_buffer.num_frames()}")
-    replay_buffer.clear()
-    logger.info(f"before filling, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    logger.info(f"replaybuffer.capacity={replaybuffer.capacity}")
+    logger.info(f"starting fill_replaybuffer(), replaybuffer.num_frames()={replaybuffer.num_frames()}")
+    replaybuffer.clear()
+    logger.info(f"before filling, replaybuffer.num_frames()={replaybuffer.num_frames()}")
     # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     num_env_steps_to_collect_per_time_step = config['num_env_steps_to_collect_per_time_step']
     num_episodes_to_collect_init = config['num_episodes_to_collect_init']
@@ -595,22 +595,22 @@ def fill_replay_buffer(driverName, py_train_env, tf_train_env, policy, replay_bu
     elif driverName in ['none']:
         tf_train_env.reset()
         for _ in range(num_env_steps_to_collect_init):
-            collect_trajectory(logger, tf_train_env, replay_buffer, policy)
+            collect_trajectory(logger, tf_train_env, replaybuffer, policy)
 
-    logger.info(f"after filling with random_policies or agent.collect_policy, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    logger.info(f"after filling with random_policies or agent.collect_policy, replaybuffer.num_frames()={replaybuffer.num_frames()}")
     logger.info(f"filling time = {time.time() - before_fill:.3f}")
 
 
-def fill_replay_buffer_for_multiagent(tf_train_env, tf_random_policies, replay_buffer, num_env_steps_to_collect_init):
+def fill_replaybuffer_for_multiagent(tf_train_env, tf_random_policies, replaybuffer, num_env_steps_to_collect_init):
     before_fill = time.time()
-    logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
-    logger.info(f"before filling, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    logger.info(f"replaybuffer.capacity={replaybuffer.capacity}")
+    logger.info(f"before filling, replaybuffer.num_frames()={replaybuffer.num_frames()}")
     # NOTE: num_frames = max_length * env.batch_size and default env.batch_size = 1". capacity is max num_frames.
     tf_train_env.reset()
     # collect env steps with random policy and save to the replay buffer.
     for _ in range(num_env_steps_to_collect_init):
-        collect_trajectory_for_multiagent(logger, tf_train_env, replay_buffer, policies=tf_random_policies)
-    logger.info(f"after filling with random_policies, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+        collect_trajectory_for_multiagent(logger, tf_train_env, replaybuffer, policies=tf_random_policies)
+    logger.info(f"after filling with random_policies, replaybuffer.num_frames()={replaybuffer.num_frames()}")
     logger.info(f"filling time = {time.time() - before_fill:.3f}")
 
 
@@ -639,7 +639,7 @@ def get_driver(py_train_env, tf_train_env, agent_collect_policy, observers):
         driver = dynamic_episode_driver.DynamicEpisodeDriver(
             tf_train_env,
             agent_collect_policy,
-            observers=observers, # observers=[replay_buffer.add_batch] + train_metrics,
+            observers=observers, # observers=[replaybuffer.add_batch] + train_metrics,
             num_episodes=num_episodes_to_collect_per_time_step,)
     elif driverName in ['none']:
         driver = None
@@ -648,69 +648,69 @@ def get_driver(py_train_env, tf_train_env, agent_collect_policy, observers):
     return driver
 
 
-def restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer=None, fill_after_restore=False, is_replay_buffer_only=False):
+def restore_agent_and_replaybuffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replaybuffer=None, fill_after_restore=False, is_replaybuffer_only=False):
     """
     restore agent and replay buffer if checkpoints are given
-    reverb replay_buffer is restored elsewhere
+    reverb replaybuffer is restored elsewhere
     """
     before_restore = time.time()
-    if replay_buffer is not None:
-        logger.info(f"replay_buffer.capacity={replay_buffer.capacity}")
-        logger.info(f"before restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    if replaybuffer is not None:
+        logger.info(f"replaybuffer.capacity={replaybuffer.capacity}")
+        logger.info(f"before restoring with checkpointer, replaybuffer.num_frames()={replaybuffer.num_frames()}")
     logger.info(f"restoring from checkpointPath_toRestore={checkpointPath_toRestore}")
 
     if checkpointPath_toRestore is None:
         return
     
-    if is_replay_buffer_only:
-        kwargs = {'replay_buffer': replay_buffer}
-        logger.info(f"restoring replay_buffer")
-    elif reverb_checkpointPath_toRestore is None and replay_buffer is not None and not fill_after_restore:  
-        kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter, 'replay_buffer': replay_buffer}
-        logger.info(f"restoring agent and replay_buffer")
+    if is_replaybuffer_only:
+        kwargs = {'replaybuffer': replaybuffer}
+        logger.info(f"restoring replaybuffer")
+    elif reverb_checkpointPath_toRestore is None and replaybuffer is not None and not fill_after_restore:  
+        kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter, 'replaybuffer': replaybuffer}
+        logger.info(f"restoring agent and replaybuffer")
     else:
         kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
         logger.info(f"restoring agent")
     checkpointer = common.Checkpointer(ckpt_dir=checkpointPath_toRestore, **kwargs)
     checkpointer.initialize_or_restore()
 
-    if replay_buffer is not None:
-        logger.info(f"after restoring with checkpointer, replay_buffer.num_frames()={replay_buffer.num_frames()}")
+    if replaybuffer is not None:
+        logger.info(f"after restoring with checkpointer, replaybuffer.num_frames()={replaybuffer.num_frames()}")
     logger.info(f"restoring time = {time.time() - before_restore:.3f}")
 
 
-def restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replay_buffer=None, fill_after_restore=False, is_replay_buffer_only=False):
+def restore_agent_and_replaybuffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replaybuffer=None, fill_after_restore=False, is_replaybuffer_only=False):
     """
     restore agent and replay buffer if checkpoints are given
-    reverb replay_buffer is restored elsewhere
+    reverb replaybuffer is restored elsewhere
     """
     if checkpointPath_toRestore is None:
         return
     for ix, agent in enumerate(agents):
         ckptPath = os.path.join(checkpointPath_toRestore, f'{ix}')
         if ix == 0: 
-            restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent, replay_buffer, fill_after_restore)
+            restore_agent_and_replaybuffer(ckptPath, reverb_checkpointPath_toRestore, agent, replaybuffer, fill_after_restore)
         else:
-            restore_agent_and_replay_buffer(ckptPath, reverb_checkpointPath_toRestore, agent)  # excluding replay_buffer
+            restore_agent_and_replaybuffer(ckptPath, reverb_checkpointPath_toRestore, agent)  # excluding replaybuffer
 
 
 def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
-        checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep, replay_bufferName, reverb_port, isPerUsed):
+        checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep, replaybufferName, reverb_port, isPerUsed):
 
     agents = get_agents(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, epsilon_greedy)  # list of agents 
     tf_agent_collect_data_spec = get_tf_agent_specs_for_multiagent(agents, tf_action_spec)
 
-    replay_buffer, dataset, iterator, observers = get_replay_buffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
+    replaybuffer, dataset, iterator, observers = get_replaybuffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
 
     checkpointers_toSave = []
     for ix, agent in enumerate(agents):
         checkpointPath = os.path.join(checkpointPath_toSave, f'{ix}')
         kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
-        if replay_bufferName != 'reverb' and ix == 0:  # since there is only one replay_buffer for multi-agents
-            kwargs['replay_buffer'] = replay_buffer
+        if replaybufferName != 'reverb' and ix == 0:  # since there is only one replaybuffer for multi-agents
+            kwargs['replaybuffer'] = replaybuffer
         checkpointer = common.Checkpointer(ckpt_dir=checkpointPath, max_to_keep=checkpoint_max_to_keep, **kwargs)
         checkpointers_toSave.append(checkpointer)
-    reverb_client_toSave = reverb.Client(f"localhost:{reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
+    reverb_client_toSave = reverb.Client(f"localhost:{reverb_port}") if replaybuffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
 
     tf_random_policy = random_tf_policy.RandomTFPolicy(tf_env_step_spec, agents[0].action_spec) 
     # tf_random_policies = [random_tf_policy.RandomTFPolicy(tf_env_step_spec, ag.action_spec) for ag in agents]
@@ -719,18 +719,18 @@ def game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_
     logger.info(f"random_policy avg_return={random_return:.3f}")
 
     if checkpointPath_toRestore is None:
-        fill_replay_buffer_for_multiagent(tf_train_env, tf_random_policies, replay_buffer, num_env_steps_to_collect_init)
+        fill_replaybuffer_for_multiagent(tf_train_env, tf_random_policies, replaybuffer, num_env_steps_to_collect_init)
     else:
-        restore_agent_and_replay_buffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replay_buffer, fill_after_restore)
+        restore_agent_and_replaybuffer_for_multiagent(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agents, replaybuffer, fill_after_restore)
         if fill_after_restore == 'true':
-            fill_replay_buffer_for_multiagent(tf_train_env, agent.collect_policy, replay_buffer, num_env_steps_to_collect_init)
+            fill_replaybuffer_for_multiagent(tf_train_env, agent.collect_policy, replaybuffer, num_env_steps_to_collect_init)
 
     game = MultiAgentGame(config)
     if config['isSummaryWriterUsed']:
         with summaryWriter.as_default():
-            game.run(logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers_toSave, reverb_client_toSave)
+            game.run(logger, tf_train_env, tf_eval_env, agents, replaybuffer, iterator, checkpointers_toSave, reverb_client_toSave)
     else:
-        game.run(logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers_toSave, reverb_client_toSave)
+        game.run(logger, tf_train_env, tf_eval_env, agents, replaybuffer, iterator, checkpointers_toSave, reverb_client_toSave)
 
 
 
@@ -764,10 +764,10 @@ if __name__ == "__main__":
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], 
             help="environment wrapper: 'history' adds observation and action history to the environment's observations.")
     parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC','BC','CQL_SAC','SAC_wo_normalize'])
-    parser.add_argument('-r', '--replay_buffer', type=str, choices=['reverb','tf_uniform'], help="'reverb' must be used with driver 'py'")
+    parser.add_argument('-r', '--replaybuffer', type=str, choices=['reverb','tf_uniform'], help="'reverb' must be used with driver 'py'")
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode','none']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
-    parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replay_buffer with agent.policy after restoring agent", 
+    parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replaybuffer with agent.policy after restoring agent", 
             choices=['true','false'])
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path," + 
             " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
@@ -780,7 +780,7 @@ if __name__ == "__main__":
     envName = config["environment"] if args.environment is None else args.environment
     envWrapper = config["environment_wrapper"] if args.environment_wrapper is None else args.environment_wrapper
     agentName = config["agent"] if args.agent is None else args.agent
-    replay_bufferName = config["replay_buffer"] if args.replay_buffer is None else args.replay_buffer
+    replaybufferName = config["replaybuffer"] if args.replaybuffer is None else args.replaybuffer
     driverName = config["driver"] if args.driver is None else args.driver
     checkpointPath_toRestore = args.checkpoint_path
     fill_after_restore = args.fill_after_restore
@@ -789,8 +789,8 @@ if __name__ == "__main__":
     num_env_steps_to_collect_init = config['num_env_steps_to_collect_init'] if args.num_env_steps_to_collect_init is None else args.num_env_steps_to_collect_init
     epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
     reverb_port = config['reverb_port'] if args.reverb_port is None else args.reverb_port
-    if replay_bufferName == 'reverb':
-        assert driverName == 'py', "replay_buffer 'reverb' must be used with driver 'py'"
+    if replaybufferName == 'reverb':
+        assert driverName == 'py', "replaybuffer 'reverb' must be used with driver 'py'"
     if agentName in ['BC','CQL_SAC']:
         assert not (checkpointPath_toRestore is None and reverb_checkpointPath_toRestore is None), \
                 "checkpoint_path or reverb_checkpoint_path must not be None for agent BC or CQL_SAC"
@@ -811,7 +811,7 @@ if __name__ == "__main__":
     logger.info(f"environment={envName}")  
     logger.info(f"envWrapper={envWrapper}")  
     logger.info(f"agent={agentName}")
-    logger.info(f"replay_buffer={replay_bufferName}")
+    logger.info(f"replaybuffer={replaybufferName}")
     logger.info(f"driver={driverName}")
     if 'discrete' in envName:
         logger.info(f"ActionDiscretizeWrapper num_actions={num_actions}")
@@ -835,7 +835,7 @@ if __name__ == "__main__":
     if 'multiagent' in agentName:
         #NOTE: game_run_multiagent() can be used actually since variables in __main__ can be seen in functions
         game_run_multiagent(agentName, tf_train_env, tf_observation_spec, tf_action_spec, epsilon_greedy, 
-                checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep, replay_bufferName, reverb_port, isPerUsed)
+                checkpointPath_toRestore, reverb_checkpointPath_toRestore, checkpointPath_toSave, checkpoint_max_to_keep, replaybufferName, reverb_port, isPerUsed)
         sys.exit(0)
 
 
@@ -843,26 +843,26 @@ if __name__ == "__main__":
     tf_agent_collect_data_spec = agent.collect_data_spec 
     logger.info(f"tf_agent_collect_data_spec: {tf_agent_collect_data_spec}")
 
-    replay_buffer, dataset, iterator, observers = get_replay_buffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
+    replaybuffer, dataset, iterator, observers = get_replaybuffer(agentName, tf_train_env, tf_agent_collect_data_spec, reverb_port, isPerUsed)
 
     kwargs = {'agent': agent, 'policy': agent.policy, 'global_step': agent.train_step_counter}
-    if replay_bufferName != 'reverb':
-        kwargs['replay_buffer'] = replay_buffer
+    if replaybufferName != 'reverb':
+        kwargs['replaybuffer'] = replaybuffer
     checkpointer_toSave = common.Checkpointer(ckpt_dir=checkpointPath_toSave, max_to_keep=checkpoint_max_to_keep, **kwargs)
-    # reverb_client = reverb.Client(f"localhost:{reverb_port}") if replay_buffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
-    reverb_client_toSave = reverb.Client(f"localhost:{reverb_port}") if replay_bufferName == 'reverb' else None
+    # reverb_client = reverb.Client(f"localhost:{reverb_port}") if replaybuffer.__class__.__name__ in ['ReverbReplayBuffer'] else None
+    reverb_client_toSave = reverb.Client(f"localhost:{reverb_port}") if replaybufferName == 'reverb' else None
 
     tf_random_policy = random_tf_policy.RandomTFPolicy(tf_env_step_spec, tf_action_spec)
     random_return = compute_avg_return(tf_eval_env, tf_random_policy)
     logger.info(f"random_policy avg_return={random_return:.3f}")
 
     if checkpointPath_toRestore is None:
-        fill_replay_buffer(driverName, py_train_env, tf_train_env, tf_random_policy, replay_buffer, observers, num_env_steps_to_collect_init)
+        fill_replaybuffer(driverName, py_train_env, tf_train_env, tf_random_policy, replaybuffer, observers, num_env_steps_to_collect_init)
     else:
-        is_replay_buffer_only = True if agentName in ['BC','CQL_SAC'] else False
-        restore_agent_and_replay_buffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replay_buffer, fill_after_restore, is_replay_buffer_only=is_replay_buffer_only)
+        is_replaybuffer_only = True if agentName in ['BC','CQL_SAC'] else False
+        restore_agent_and_replaybuffer(checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replaybuffer, fill_after_restore, is_replaybuffer_only=is_replaybuffer_only)
         if fill_after_restore == 'true':
-            fill_replay_buffer(driverName, py_train_env, tf_train_env, agent.collect_policy, replay_buffer, observers, num_env_steps_to_collect_init)
+            fill_replaybuffer(driverName, py_train_env, tf_train_env, agent.collect_policy, replaybuffer, observers, num_env_steps_to_collect_init)
 
     driver = get_driver(py_train_env, tf_train_env, agent.collect_policy, observers)
 
@@ -871,7 +871,7 @@ if __name__ == "__main__":
 
     if config['isSummaryWriterUsed']:
         with summaryWriter.as_default():
-            game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
+            game.run(logger, py_train_env, tf_eval_env, agent, replaybuffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
     else:
-        game.run(logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
+        game.run(logger, py_train_env, tf_eval_env, agent, replaybuffer, iterator, driver, checkpointer_toSave, reverb_client_toSave)
 

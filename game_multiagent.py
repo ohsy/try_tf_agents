@@ -12,7 +12,7 @@ from tf_agents.trajectories import Trajectory, from_transition, PolicyStep
 from tf_agents.policies import random_tf_policy
 
 
-def collect_trajectory_for_multiagent(logger, environment, replay_buffer, policies=None, agents=None):
+def collect_trajectory_for_multiagent(logger, environment, replaybuffer, policies=None, agents=None):
     assert not(policies is None and agents is None), f"either policies or agents must not be None"
     if policies is None:
         policies = []
@@ -31,7 +31,7 @@ def collect_trajectory_for_multiagent(logger, environment, replay_buffer, polici
     next_env_step = environment.step(merged_action)
     # logger.debug(f"action_step={action_step}")
     traj = from_transition(env_step, action_step, next_env_step)
-    replay_buffer.add_batch(traj)
+    replaybuffer.add_batch(traj)
 
 
 def merge_action(actions):
@@ -105,10 +105,10 @@ class MultiAgentGame:
         if reverb_client is not None:
             reverb_checkpointPath_to_restore_later = reverb_client.checkpoint()
             logger.info(f"reverb_checkpointPath_to_restore_later={reverb_checkpointPath_to_restore_later}")
-        logger.info(f"agents and replay_buffer saved")
+        logger.info(f"agents and replaybuffer saved")
 
 
-    def run(self, logger, tf_train_env, tf_eval_env, agents, replay_buffer, iterator, checkpointers, reverb_client):
+    def run(self, logger, tf_train_env, tf_eval_env, agents, replaybuffer, iterator, checkpointers, reverb_client):
 
         before_all = time.time()
 
@@ -131,7 +131,7 @@ class MultiAgentGame:
 
             # collect trajectories from env and fill in replay buffer
             for _ in range(self.num_env_steps_to_collect_per_time_step):
-                collect_trajectory_for_multiagent(logger, tf_train_env, replay_buffer, agents=agents)
+                collect_trajectory_for_multiagent(logger, tf_train_env, replaybuffer, agents=agents)
 
             if time_step % self.num_time_steps_to_train == 0:
                 # trajectory, unused_info = next(iterator)

@@ -12,12 +12,12 @@ from tf_agents.utils import common
 from tf_agents.trajectories import from_transition
 
 
-def collect_trajectory(logger, environment, replay_buffer, policy):
+def collect_trajectory(logger, environment, replaybuffer, policy):
     env_step = environment.current_time_step()
     action_step = policy.action(env_step)
     next_env_step = environment.step(action_step.action)
     trajectory = from_transition(time_step, action_step, next_time_step)
-    replay_buffer.add_batch(trajectory)
+    replaybuffer.add_batch(trajectory)
 
 
 # See also the metrics module for standard implementations of different metrics.
@@ -60,10 +60,10 @@ class Game:
         if reverb_client is not None:
             reverb_checkpointPath_to_restore_later = reverb_client.checkpoint()
             logger.info(f"reverb_checkpointPath_to_restore_later={reverb_checkpointPath_to_restore_later}")
-        logger.info(f"agent and replay_buffer saved")
+        logger.info(f"agent and replaybuffer saved")
 
 
-    def run(self, logger, py_train_env, tf_eval_env, agent, replay_buffer, iterator, driver, checkpointer, reverb_client):
+    def run(self, logger, py_train_env, tf_eval_env, agent, replaybuffer, iterator, driver, checkpointer, reverb_client):
 
         before_all = time.time()
         # (Optional) Optimize by wrapping some of the code in a graph using TF function.
@@ -87,7 +87,7 @@ class Game:
             if time_step % self.num_time_steps_to_collect == 0:
                 if driver is None:
                     for _ in range(self.num_env_steps_to_collect_per_time_step):
-                        collect_trajectory(logger, tf_train_env, replay_buffer, agent.collect_policy)
+                        collect_trajectory(logger, tf_train_env, replaybuffer, agent.collect_policy)
                 elif driver.__class__.__name__ in ['PyDriver']:
                     env_step, _ = driver.run(env_step)
                 elif driver.__class__.__name__ in ['DynamicStepDriver','DynamicEpisodeDriver']:
@@ -119,10 +119,10 @@ class Game:
         logger.info(f"run() total_time={after_all-before_all:.3f}")
 
     """
-    def train_and_save_agent(self, logger, agent, replay_buffer, dataset, iterator, checkpointer, reverb_client):
+    def train_and_save_agent(self, logger, agent, replaybuffer, dataset, iterator, checkpointer, reverb_client):
         before_all = before = time.time()
         agent.train_step_counter.assign(tf.Variable(0, dtype=tf.int64))
-        num_batches = replay_buffer.num_frames() // self.batch_size
+        num_batches = replaybuffer.num_frames() // self.batch_size
         for time_steps  in range(self.num_time_steps):
             trajectory, unused_info = iterator.get_next()  # trajectory as tensor
             logger.debug(f"trajectory={trajectory}")
