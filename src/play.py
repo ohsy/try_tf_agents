@@ -300,39 +300,11 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             summarize_grads_and_vars=True,
             train_step_counter=train_utils.create_train_step())
 
-    elif agentName in ["SAC"]:
-        actor_net = actor_distribution_network.ActorDistributionNetwork(
-            tf_observation_spec, 
-            tf_action_spec,
-            fc_layer_params=actor_fc_layer_params,
-            continuous_projection_net=(
-                tanh_normal_projection_network.TanhNormalProjectionNetwork))
-        critic_net = critic_network.CriticNetwork(
-            (tf_observation_spec, tf_action_spec),
-            observation_fc_layer_params=critic_observation_fc_layer_params,
-            action_fc_layer_params=critic_action_fc_layer_params,
-            joint_fc_layer_params=critic_joint_fc_layer_params,
-            kernel_initializer='glorot_uniform',
-            last_kernel_initializer='glorot_uniform')
-        agent = sac_agent.SacAgent(
-            tf_env_step_spec,
-            tf_action_spec,
-            actor_network=actor_net,
-            critic_network=critic_net,
-            actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
-            critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
-            alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
-            actor_policy_ctor=NormalizedActorPolicy,
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
-            td_errors_loss_fn=tf.math.squared_difference,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
-            debug_summaries=True,
-            summarize_grads_and_vars=True,
-            train_step_counter=train_utils.create_train_step())
+    elif agentName in ["SAC","SAC_wo_normalize"]:
+        actor_policy_ctor=NormalizedActorPolicy if agentName == "SAC" else None
+        # with normlize for environments like Pendulum-v1
+        # without normlize for environments like DaisoSokcho
 
-    elif agentName in ["SAC_wo_normalize"]:
         # actor_learning_rate: types.Float = 3e-5
         # critic_learning_rate: types.Float = 3e-4
         # alpha_learning_rate: types.Float = 3e-4
@@ -359,7 +331,7 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             actor_optimizer=tf.keras.optimizers.Adam(learning_rate=actor_learning_rate),
             critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
             alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
-            # actor_policy_ctor=NormalizedActorPolicy,  # after CQL_SAC, this prevents transfering trained nets.
+            actor_policy_ctor=actor_policy_ctor,
             target_update_tau=target_update_tau,
             target_update_period=target_update_period,
             td_errors_loss_fn=tf.math.squared_difference,
@@ -369,7 +341,11 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             summarize_grads_and_vars=True,
             train_step_counter=train_utils.create_train_step())
 
-    elif agentName in ["CQL_SAC"]:
+    elif agentName in ["CQL_SAC","CQL_SAC_w_normalize"]:
+        actor_policy_ctor=NormalizedActorPolicy if agentName == "CQL_SAC_w_normalize" else None
+        # with normlize for environments like Pendulum-v1
+        # without normlize for environments like DaisoSokcho
+
         # cf. https://github.com/tensorflow/agents/blob/master/tf_agents/agents/cql/cql_sac_agent.py
         # actor_fc_layer_params = [256, 256]
         # critic_joint_fc_layer_params = [256, 256, 256]
@@ -430,6 +406,7 @@ def get_agent(agentName, tf_env_step_spec, tf_observation_spec, tf_action_spec, 
             critic_optimizer=tf.keras.optimizers.Adam(learning_rate=critic_learning_rate),
             alpha_optimizer=tf.keras.optimizers.Adam(learning_rate=alpha_learning_rate),
             # actor_policy_ctor=NormalizedActorPolicy,  # can be added when actor or critic loss is inf or NaN
+            actor_policy_ctor=actor_policy_ctor,  # can be added when actor or critic loss is inf or NaN
             cql_alpha=cql_alpha,
             num_cql_samples=num_cql_samples,
             include_critic_entropy_term=include_critic_entropy_term,
@@ -535,7 +512,7 @@ def get_replaybuffer(agentName, tf_train_env, agent_collect_data_spec, replaybuf
                 sample_batch_size=batch_size)
                 # num_steps=1
                 # single_deterministic_pass=True)
-    elif agentName in ['CQL_SAC']: # All of the Tensors in `value` must have two outer dimensions: must have shape `[B, T] + spec.shape`. 
+    elif agentName in ['CQL_SAC','CQL_SAC_w_normalize']: # All of the Tensors in `value` must have two outer dimensions: must have shape `[B, T] + spec.shape`. 
         dataset = replaybuffer.as_dataset(
                 num_parallel_calls=3,
                 sample_batch_size=batch_size,
@@ -764,7 +741,7 @@ if __name__ == "__main__":
                     'DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'], 
             help="environment wrapper: 'history' adds observation and action history to the environment's observations.")
-    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC','BC','CQL_SAC','SAC_wo_normalize'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC','SAC_wo_normalize','BC','CQL_SAC','CQL_SAC_w_normalize'])
     parser.add_argument('-r', '--replaybuffer', type=str, choices=['reverb','tf_uniform'], help="'reverb' must be used with driver 'py'")
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode','none']) 
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -774,10 +751,10 @@ if __name__ == "__main__":
             " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
     parser.add_argument('-t', '--num_time_steps', type=int, help="number of time-steps")
+    parser.add_argument('-l', '--replaybuffer_max_length', type=int, help="replaybuffer max length")
     parser.add_argument('-i', '--num_env_steps_to_collect_init', type=int, help="number of initial collect steps")
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     parser.add_argument('-o', '--reverb_port', type=int, help="reverb port for reverb.Client and Server")
-    parser.add_argument('-l', '--replaybuffer_max_length', type=int, help="replaybuffer max length")
     args = parser.parse_args()
 
     envName = config["environment"] if args.environment is None else args.environment
@@ -791,14 +768,14 @@ if __name__ == "__main__":
     num_actions = config['num_actions'] if args.num_actions is None else args.num_actions
     num_time_steps = config['num_time_steps'] if args.num_time_steps is None else args.num_time_steps
     num_time_steps = num_time_steps if num_time_steps > 0 else sys.maxsize
+    replaybuffer_max_length = config['replaybuffer_max_length'] if args.replaybuffer_max_length is None else args.replaybuffer_max_length
     num_env_steps_to_collect_init = config['num_env_steps_to_collect_init'] if args.num_env_steps_to_collect_init is None else args.num_env_steps_to_collect_init
     epsilon_greedy = config['epsilon_greedy'] if args.epsilon_greedy is None else args.epsilon_greedy
     reverb_port = config['reverb_port'] if args.reverb_port is None else args.reverb_port
-    replaybuffer_max_length = config['replaybuffer_max_length'] if args.replaybuffer_max_length is None else args.replaybuffer_max_length
 
     if replaybufferName == 'reverb':
         assert driverName == 'py', "replaybuffer 'reverb' must be used with driver 'py'"
-    if agentName in ['BC','CQL_SAC']:
+    if agentName in ['BC','CQL_SAC','CQL_SAC_w_normalize']:
         assert not (checkpointPath_toRestore is None and reverb_checkpointPath_toRestore is None), \
                 "checkpoint_path or reverb_checkpoint_path must not be None for agent BC or CQL_SAC"
 
@@ -867,7 +844,7 @@ if __name__ == "__main__":
     if checkpointPath_toRestore is None:
         fill_replaybuffer(driverName, py_train_env, tf_train_env, tf_random_policy, replaybuffer, observers, num_env_steps_to_collect_init)
     else:
-        is_replaybuffer_only = True if agentName in ['BC','CQL_SAC'] else False
+        is_replaybuffer_only = True if agentName in ['BC','CQL_SAC','CQL_SAC_w_normalize'] else False
         restore_agent_and_replaybuffer(
                 checkpointPath_toRestore, reverb_checkpointPath_toRestore, agent, replaybuffer, fill_after_restore, is_replaybuffer_only=is_replaybuffer_only)
         if fill_after_restore == 'true':
@@ -875,7 +852,7 @@ if __name__ == "__main__":
 
     driver = get_driver(py_train_env, tf_train_env, agent.collect_policy, observers)
 
-    game = Game(config, num_time_steps, isTrainOnly=True) if agentName in ['BC','CQL_SAC'] \
+    game = Game(config, num_time_steps, isTrainOnly=True) if agentName in ['BC','CQL_SAC','CQL_SAC_w_normalize'] \
             else Game(config, num_time_steps)
 
     if config['isSummaryWriterUsed']:
