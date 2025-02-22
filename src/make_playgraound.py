@@ -9,12 +9,13 @@ if __name__ == "__main__":
     parser.add_argument('-y', '--playground_index', type=int, help="playground index")
     parser.add_argument('-s', '--num_shellscripts', type=int, help="number of shell scripts")
 
+    #--------------- from play.py
     parser.add_argument('-e', '--environment', type=str,
             choices=['CartPole-v0','Pendulum-v1','Pendulum-v1_discrete','Reacher-v2','Reacher-v2_discrete',\
                     'DaisoSokcho','DaisoSokcho_discrete','DaisoSokcho_discrete_unit1'])
     parser.add_argument('-w', '--environment_wrapper', type=str, choices=['history'],
             help="environment wrapper: 'history' adds observation and action history to the environment's observations.")
-    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC','SAC_wo_normalize','BC','CQL_SAC','CQL_SAC_w_normalize'])
+    parser.add_argument('-a', '--agent', type=str, choices=['DQN','DQN_multiagent','CDQN','CDQN_multiagent','DDPG','TD3','SAC','SAC_wo_normalize','BC','CQL_SAC','CQL_SAC_wo_normalize'])
     parser.add_argument('-r', '--replaybuffer', type=str, choices=['reverb','tf_uniform'], help="'reverb' must be used with driver 'py'")
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode','none'])
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
@@ -31,14 +32,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     playground_index = args.playground_index
-    num_shellscripts = args.num_shellscripts
+    num_shellscripts = args.num_shellscripts  # to get statistical behavior by averaging
 
     project_path = "/home/soh/work/try_tf_agents"
     src_path = "/home/soh/work/try_tf_agents/src"
-    playground_path = os.path.join(project_path, f"workspace/playground{playground_index}")
+    playground_path = os.path.join(project_path, f"playground/{args.environment}_{args.agent}_{playground_index}")
     checkpoint_path = os.path.join(project_path, args.checkpoint_path) if args.checkpoint_path is not None else None
 
-    output_prefix = f"o_{args.environment}_{args.agent}" \
+    output_prefix = f"o" \
             + (f"_num_time_steps_{args.num_time_steps}" if args.num_time_steps is not None else "") \
             + (f"_replaybuffer_max_length_{args.replaybuffer_max_length}" if args.replaybuffer_max_length is not None else "") \
             + (f"_num_env_steps_to_collect_init_{args.num_env_steps_to_collect_init}" if args.num_env_steps_to_collect_init is not None else "")

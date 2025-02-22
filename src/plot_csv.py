@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 def main(file_prefix):
     # Step 1: Read the contents of the CSV file
     # Replace 'data.csv' with the path to your CSV file
-    file_path = f"./{file_prefix}.csv"
+    file_path = f"{file_prefix}.csv"
+    output_file_path = f"{file_prefix}.png"
     data = pd.read_csv(file_path)
 
     # Step 2: Plot the data
@@ -34,7 +35,6 @@ def main(file_prefix):
 
     # Step 3: Save the plot to a file
     # You can specify the file format by changing the extension (e.g., .png, .jpg, .pdf)
-    output_file_path = f"./{file_prefix}.png"
     plt.savefig(output_file_path)
 
     # Optionally, show the plot
