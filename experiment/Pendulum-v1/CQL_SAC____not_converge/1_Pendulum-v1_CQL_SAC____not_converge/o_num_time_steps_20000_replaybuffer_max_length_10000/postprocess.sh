@@ -1,0 +1,10 @@
+#!/bin/bash
+
+cd /home/soh/work/try_tf_agents/src
+python3 get_avg_returns.py 1 /home/soh/work/try_tf_agents/playground/Pendulum-v1_CQL_SAC_11/o_num_time_steps_20000_replaybuffer_max_length_10000
+python3 plot_csv.py /home/soh/work/try_tf_agents/playground/Pendulum-v1_CQL_SAC_11/o_num_time_steps_20000_replaybuffer_max_length_10000
+cd /home/soh/work/try_tf_agents/playground/Pendulum-v1_CQL_SAC_11
+mkdir o_num_time_steps_20000_replaybuffer_max_length_10000
+mv o_num_time_steps_20000_replaybuffer_max_length_10000.* o_num_time_steps_20000_replaybuffer_max_length_10000
+mv o_num_time_steps_20000_replaybuffer_max_length_10000_* o_num_time_steps_20000_replaybuffer_max_length_10000
+cp /home/soh/work/try_tf_agents/src/play.py /home/soh/work/try_tf_agents/src/game.py /home/soh/work/try_tf_agents/src/config.json playbatch*.sh postprocess.sh o_num_time_steps_20000_replaybuffer_max_length_10000
