@@ -19,8 +19,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--replaybuffer', type=str, choices=['reverb','tf_uniform'], help="'reverb' must be used with driver 'py'")
     parser.add_argument('-d', '--driver', type=str, choices=['py','dynamic_step','dynamic_episode','none'])
     parser.add_argument('-c', '--checkpoint_path', type=str, help="to restore")
-    parser.add_argument('-f', '--fill_after_restore', type=str, help="fill replaybuffer with agent.policy after restoring agent",
-            choices=['true','false'])
+    parser.add_argument('-wr', '--what_to_restore', type=str, choices=['all','agent','replaybuffer'], default='all')
     parser.add_argument('-p', '--reverb_checkpoint_path', type=str, help="to restore: parent directory of saved path," +
             " which is output when saved, like '/tmp/tmp6j63a_f_' of '/tmp/tmp6j63a_f_/2024-10-27T05:22:20.16401174+00:00'")
     parser.add_argument('-n', '--num_actions', type=int, help="number of actions for ActionDiscretizeWrapper")
@@ -30,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--epsilon_greedy', type=float, help="epsilon for epsilon_greedy")
     parser.add_argument('-o', '--reverb_port', type=int, help="reverb port for reverb.Client and Server")
     args = parser.parse_args()
+
 
     playground_index = args.playground_index
     num_shellscripts = args.num_shellscripts  # to get statistical behavior by averaging
