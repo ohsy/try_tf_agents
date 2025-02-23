@@ -31,28 +31,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    playground_index = args.playground_index
-    num_shellscripts = args.num_shellscripts  # to get statistical behavior by averaging
-
     project_path = "/home/soh/work/try_tf_agents"
     src_path = "/home/soh/work/try_tf_agents/src"
-    playground_path = os.path.join(project_path, f"playground/{args.environment}_{args.agent}_{playground_index}")
-    checkpoint_path = os.path.join(project_path, args.checkpoint_path) if args.checkpoint_path is not None else None
+    playground_path = os.path.join(project_path, f"playground/{args.playground_index}_{args.environment}_{args.agent}")
+    # checkpoint_path = os.path.join(project_path, args.checkpoint_path) if args.checkpoint_path is not None else None
 
     output_prefix = f"o" \
             + (f"_num_time_steps_{args.num_time_steps}" if args.num_time_steps is not None else "") \
             + (f"_replaybuffer_max_length_{args.replaybuffer_max_length}" if args.replaybuffer_max_length is not None else "") \
-            + (f"_num_env_steps_to_collect_init_{args.num_env_steps_to_collect_init}" if args.num_env_steps_to_collect_init is not None else "")
+            + (f"_num_env_steps_to_collect_init_{args.num_env_steps_to_collect_init}" if args.num_env_steps_to_collect_init is not None else "") \
+            + (f"_what_to_restore_{args.what_to_restore}" if args.what_to_restore is not None else "")
 
     master_sh_path = os.path.join(playground_path, f"playbatch.sh")
     pathlib.Path(master_sh_path).parent.mkdir(exist_ok=True, parents=True)  # make parents unless they exist
     with open(master_sh_path,'w') as f:
         f.write(f"#!/bin/bash\n\n")
-        for idx in range(num_shellscripts):
+        for idx in range(args.num_shellscripts):
             f.write(f"./playbatch{idx}.sh\n")
     os.chmod(master_sh_path, 0o775)
 
-    for idx in range(num_shellscripts):
+    for idx in range(args.num_shellscripts):
         sub_sh_path = os.path.join(playground_path, f"playbatch{idx}.sh")
         with open(sub_sh_path,'w') as f:
             f.write(f"#!/bin/bash\n\n")
@@ -63,7 +61,8 @@ if __name__ == "__main__":
                     + (f" -t {args.num_time_steps}" if args.num_time_steps is not None else "") \
                     + (f" -l {args.replaybuffer_max_length}" if args.replaybuffer_max_length is not None else "") \
                     + (f" -i {args.num_env_steps_to_collect_init}" if args.num_env_steps_to_collect_init is not None else "") \
-                    + (f" -c {checkpoint_path}" if args.checkpoint_path is not None else "")
+                    + (f" -c {args.checkpoint_path}" if args.checkpoint_path is not None else "") \
+                    + (f" -wr {args.what_to_restore}" if args.what_to_restore is not None else "")
             instruction += f" &> {playground_path}/{output_prefix}_{idx} &"
             f.write(f"{instruction}\n")
         os.chmod(sub_sh_path, 0o775)
@@ -72,7 +71,7 @@ if __name__ == "__main__":
     with open(postprocess_sh_path,'w') as f:
         f.write(f"#!/bin/bash\n\n")
         f.write(f"cd {src_path}\n")
-        f.write(f"python3 get_avg_returns.py {num_shellscripts} {playground_path}/{output_prefix}\n")
+        f.write(f"python3 get_avg_returns.py {args.num_shellscripts} {playground_path}/{output_prefix}\n")
         f.write(f"python3 plot_csv.py {playground_path}/{output_prefix}\n")
         f.write(f"cd {playground_path}\n")
         f.write(f"mkdir {output_prefix}\n")
